@@ -3,65 +3,241 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MedCheck — Medication Safety</title>
+  <title>MedCheck — Medication Safety for Seniors</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%236366f1'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'%3EM%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-  <main>
-    <div class="hero">
-      <h1>MedCheck</h1>
-      <p>Medication safety screening for older adults (≥65)</p>
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">MedCheck</div>
+      <p class="tagline">Safe medication screening for adults 65+</p>
     </div>
+  </header>
 
-    <div class="container">
-      <section class="panel">
-        <h2>Enter Medications</h2>
-        <textarea id="drugs" placeholder="e.g. amitriptyline, diazepam, omeprazole, lisinopril" rows="4"></textarea>
+  <main class="main-content">
+    <!-- Input Panel -->
+    <div class="container narrow">
+      <div class="card input-card">
+        <h2 class="card-title">Check Your Medications</h2>
         
-        <label>Patient Conditions (optional)</label>
-        <input id="conditions" type="text" placeholder="e.g. heart failure, diabetes, osteoporosis">
-        
-        <div class="actions">
-          <button id="runBtn" class="btn-primary">Run Check</button>
-          <button id="clearBtn" class="btn-secondary">Clear</button>
+        <div class="form-group">
+          <label for="drugs">Medications *</label>
+          <textarea 
+            id="drugs" 
+            class="form-control" 
+            placeholder="Enter medicine names separated by commas&#10;Example: amitriptyline, warfarin, ibuprofen"
+            rows="3"
+          ></textarea>
+          <small class="form-hint">Include both brand and generic names</small>
         </div>
-      </section>
 
-      <section id="results" class="panel hidden">
-        <h2>Report</h2>
-        <pre id="reportText"></pre>
-      </section>
+        <div class="form-group">
+          <label for="conditions">Patient Conditions (optional)</label>
+          <input 
+            id="conditions" 
+            type="text" 
+            class="form-control"
+            placeholder="e.g. heart failure, diabetes, kidney disease"
+          >
+          <small class="form-hint">Helps identify condition-specific warnings</small>
+        </div>
 
-      <section id="error" class="panel error hidden">
-        <p id="errorText"></p>
-      </section>
-
-      <section id="loading" class="panel loading hidden">
-        <p>Analyzing medications...</p>
-      </section>
+        <div class="form-actions">
+          <button id="runBtn" class="btn btn-primary">
+            Analyze Medications
+          </button>
+          <button id="clearBtn" class="btn btn-secondary">Clear</button>
+        </div>
+      </div>
     </div>
 
-    <footer>
-      <small>Demo for educational purposes only. Not a substitute for clinical judgment.</small>
-    </footer>
+    <!-- Results Container -->
+    <div id="resultsContainer" class="results-container hidden">
+      
+      <!-- Loading Indicator -->
+      <div id="loading" class="loading-indicator">
+        <div class="spinner"></div>
+        <p>Analyzing your medications...</p>
+      </div>
+
+      <!-- Error Alert -->
+      <div id="error" class="alert alert-error hidden">
+        <span class="alert-icon">!</span>
+        <div class="alert-content">
+          <p id="errorText"></p>
+        </div>
+      </div>
+
+      <!-- Results Sections -->
+      <div id="reportSections" class="container"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state">
+      <p class="empty-icon">💊</p>
+      <p>Enter your medications to get started</p>
+    </div>
   </main>
+
+  <footer class="footer">
+    <p><strong>Disclaimer:</strong> For educational purposes only. Not a substitute for professional medical advice. Always consult with a pharmacist or healthcare provider.</p>
+    <p><small>Based on: ACB Calculator • AGS Beers Criteria 2023 • STOPP/START v3 2023 • Medscape</small></p>
+  </footer>
 
   <script>
     const drugsEl = document.getElementById('drugs');
     const conditionsEl = document.getElementById('conditions');
     const runBtn = document.getElementById('runBtn');
     const clearBtn = document.getElementById('clearBtn');
-    const resultsEl = document.getElementById('results');
-    const reportEl = document.getElementById('reportText');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const reportSections = document.getElementById('reportSections');
     const errorEl = document.getElementById('error');
     const errorTextEl = document.getElementById('errorText');
     const loadingEl = document.getElementById('loading');
+    const emptyState = document.getElementById('emptyState');
 
-    // Load demo data
+    // Pre-fill demo data
     drugsEl.value = 'amitriptyline, diazepam, omeprazole, lisinopril';
     conditionsEl.value = 'heart failure, diabetes';
 
+    // Parse the text report into structured sections
+    function parseReport(reportText) {
+      const sections = {
+        summary: null,
+        acb: null,
+        beers: null,
+        stopp: null,
+        interactions: null,
+        duplicates: null,
+        cumulativeRisk: null,
+        start: null
+      };
+
+      // Extract sections using regex patterns
+      const patterns = {
+        acb: /--- 1\. ACB.*?(?=--- 2\.|--- 5\.|--- 7\.|SUMMARY|$)/s,
+        beers: /--- 2\. Beers.*?(?=--- 3\.|--- 5\.|--- 7\.|SUMMARY|$)/s,
+        stopp: /--- 3\. STOPP.*?(?=--- 4\.|--- 5\.|--- 7\.|SUMMARY|$)/s,
+        interactions: /--- 4\. Drug-Drug.*?(?=--- 5\.|--- 6\.|--- 7\.|SUMMARY|$)/s,
+        duplicates: /--- 5\. Duplicate.*?(?=--- 6\.|--- 7\.|SUMMARY|$)/s,
+        cumulativeRisk: /--- 6\. Cumulative.*?(?=--- 7\.|SUMMARY|$)/s,
+        start: /--- 7\. START.*?(?=SUMMARY|$)/s,
+        summary: /SUMMARY.*?(?=------|$)/s
+      };
+
+      for (const [key, pattern] of Object.entries(patterns)) {
+        const match = reportText.match(pattern);
+        sections[key] = match ? match[0] : null;
+      }
+
+      return sections;
+    }
+
+    // Render a report section as a styled card
+    function renderSection(title, content, severity = 'info') {
+      if (!content) return '';
+
+      return `
+        <div class="card report-card report-card-${severity}">
+          <div class="card-header">
+            <h3 class="card-title">${title}</h3>
+            <button class="toggle-btn" data-section="${title}" aria-expanded="true" title="Toggle section">−</button>
+          </div>
+          <div class="card-content" data-content="${title}">
+            <pre class="report-text">${content}</pre>
+          </div>
+        </div>
+      `;
+    }
+
+    // Check severity level
+    function getSeverity(content) {
+      if (!content) return 'info';
+      if (content.includes('VERY HIGH') || content.includes('CONTRAINDICATED')) return 'danger';
+      if (content.includes('HIGH') || content.includes('SERIOUS')) return 'warning';
+      if (content.includes('MONITOR')) return 'caution';
+      return 'info';
+    }
+
+    // Display parsed report with cards
+    async function displayReport(report) {
+      const sections = parseReport(report);
+      
+      let html = '';
+
+      // Priority Alerts Banner
+      const priorityAlerts = [];
+      if (sections.cumulativeRisk && sections.cumulativeRisk.includes('VERY HIGH')) {
+        priorityAlerts.push(`HIGH CUMULATIVE RISK DETECTED`);
+      }
+      if (sections.duplicates && sections.duplicates.includes('1/')) {
+        priorityAlerts.push(`DUPLICATE THERAPY FOUND`);
+      }
+      if (sections.interactions && sections.interactions.includes('CONTRAINDICATED')) {
+        priorityAlerts.push(`CONTRAINDICATED INTERACTION`);
+      }
+      
+      if (priorityAlerts.length > 0) {
+        html += `
+          <div class="alert alert-critical">
+            <span class="alert-icon">⚠</span>
+            <div class="alert-content">
+              <p><strong>Critical Issues Detected:</strong></p>
+              <ul>${priorityAlerts.map(a => `<li>${a}</li>`).join('')}</ul>
+              <p style="margin:8px 0 0; font-size:0.9em">Review the sections below for details.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      // Main sections
+      if (sections.acb) {
+        html += renderSection('1. Anticholinergic Burden (ACB)', sections.acb, 
+          sections.acb.includes('HIGH') ? 'warning' : 'info');
+      }
+      if (sections.beers) {
+        html += renderSection('2. Beers Criteria 2023', sections.beers, 'warning');
+      }
+      if (sections.stopp) {
+        html += renderSection('3. STOPP/START v3', sections.stopp, 'warning');
+      }
+      if (sections.interactions) {
+        html += renderSection('4. Drug Interactions', sections.interactions,
+          sections.interactions.includes('CONTRAINDICATED') ? 'danger' : 'warning');
+      }
+      if (sections.duplicates) {
+        html += renderSection('5. Duplicate Therapies', sections.duplicates,
+          sections.duplicates.includes('1/') ? 'danger' : 'info');
+      }
+      if (sections.cumulativeRisk) {
+        html += renderSection('6. Cumulative Risk Assessment', sections.cumulativeRisk,
+          sections.cumulativeRisk.includes('VERY HIGH') ? 'danger' : 'warning');
+      }
+      if (sections.start) {
+        html += renderSection('7. Medicines to Consider Starting', sections.start, 'info');
+      }
+      if (sections.summary) {
+        html += renderSection('Summary', sections.summary, 'info');
+      }
+
+      reportSections.innerHTML = html;
+
+      // Add toggle event listeners
+      document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const section = e.target.dataset.section;
+          const content = document.querySelector(`[data-content="${section}"]`);
+          const isExpanded = e.target.getAttribute('aria-expanded') === 'true';
+          
+          content.style.display = isExpanded ? 'none' : 'block';
+          e.target.setAttribute('aria-expanded', !isExpanded);
+          e.target.textContent = isExpanded ? '+' : '−';
+        });
+      });
+    }
+
+    // Run check
     runBtn.addEventListener('click', async () => {
       const drugs = drugsEl.value.trim();
       const conditions = conditionsEl.value.trim();
@@ -69,13 +245,16 @@
       if (!drugs) {
         errorTextEl.textContent = 'Please enter at least one medication.';
         errorEl.classList.remove('hidden');
-        resultsEl.classList.add('hidden');
+        resultsContainer.classList.add('hidden');
+        emptyState.classList.remove('hidden');
         return;
       }
 
       errorEl.classList.add('hidden');
-      resultsEl.classList.add('hidden');
-      loadingEl.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+      resultsContainer.classList.remove('hidden');
+      loadingEl.style.display = 'block';
+      reportSections.innerHTML = '';
       runBtn.disabled = true;
 
       try {
@@ -91,28 +270,31 @@
           throw new Error(data.error || 'Request failed');
         }
 
-        reportEl.textContent = data.report;
-        resultsEl.classList.remove('hidden');
+        loadingEl.style.display = 'none';
+        await displayReport(data.report);
+        
       } catch (err) {
+        loadingEl.style.display = 'none';
         errorTextEl.textContent = 'Error: ' + err.message;
         errorEl.classList.remove('hidden');
       } finally {
-        loadingEl.classList.add('hidden');
         runBtn.disabled = false;
       }
     });
 
+    // Clear form
     clearBtn.addEventListener('click', () => {
       drugsEl.value = '';
       conditionsEl.value = '';
-      resultsEl.classList.add('hidden');
+      resultsContainer.classList.add('hidden');
+      emptyState.classList.remove('hidden');
       errorEl.classList.add('hidden');
-      loadingEl.classList.add('hidden');
+      reportSections.innerHTML = '';
     });
 
-    // Auto-run on load with demo data
+    // Auto-run with demo data on page load
     window.addEventListener('load', () => {
-      runBtn.click();
+      setTimeout(() => runBtn.click(), 500);
     });
   </script>
 </body>
