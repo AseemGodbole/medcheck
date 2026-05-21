@@ -35,6 +35,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 from acb_calculator import calculate_acb, score_label as acb_score_label
 from beers_criteria import check_drugs as check_beers, TABLE_LABELS
+from drug_interactions import check_interactions
 from stopp_start import (
     check_drugs_stopp, get_start_suggestions,
     STOPPEntry, STARTEntry
@@ -134,8 +135,41 @@ def run_full_check(drug_names: list, conditions: list = None):
     sflag_colour = RED if sf > 0 else GREEN
     print(f"\n  {BOLD('STOPP flags: ')} {sflag_colour(str(sf))}/{st} drug(s) flagged")
 
-    # ── 4. START Suggestions ─────────────────────────────────────────────────
-    print(f"\n{BOLD('━━━  4.  START v3 2023 — Medicines to Consider Starting  ━━━')}")
+    # ── 4. Drug-Drug Interactions ────────────────────────────────────────────
+    interaction_result = check_interactions(drug_names)
+
+    print(f"\n{BOLD('━━━  4.  Drug-Drug Interactions  ━━━')}")
+    if not interaction_result["interactions_found"]:
+        print(f"  {GREEN('✓')}  No clinically significant interactions found between the listed drugs")
+    else:
+        for item in interaction_result["interactions_found"]:
+            interaction = item["interaction"]
+            severity = interaction.severity
+            icon = {
+                "CONTRAINDICATED": RED("🚫"),
+                "SERIOUS": RED("⛔"),
+                "MONITOR": YELLOW("⚠"),
+                "MINOR": DIM("ℹ"),
+            }.get(severity, YELLOW("•"))
+            print(f"  {icon}  {item['drug_a'].title():<25} × {item['drug_b'].title()}  [{severity}]")
+            print(f"       Mechanism : {interaction.mechanism}")
+            print(f"       Effect    : {interaction.effect}")
+            print(f"       Management: {interaction.management}")
+
+    ic = interaction_result["counts"]
+    i_total = len(interaction_result["interactions_found"])
+    i_colour = RED if i_total > 0 else GREEN
+    print(f"\n  {BOLD('Interactions found: ')} {i_colour(str(i_total))}/{interaction_result['pairs_checked']} pair(s)")
+    if i_total > 0:
+        sev_bits = []
+        for label in ("CONTRAINDICATED", "SERIOUS", "MONITOR", "MINOR"):
+            if ic.get(label, 0):
+                sev_bits.append(f"{label.lower()}: {ic[label]}")
+        if sev_bits:
+            print(f"  {DIM('Severity breakdown: ' + ', '.join(sev_bits))}")
+
+    # ── 5. START Suggestions ─────────────────────────────────────────────────
+    print(f"\n{BOLD('━━━  5.  START v3 2023 — Medicines to Consider Starting  ━━━')}")
     if not conditions:
         print(f"  {DIM('No conditions provided — pass conditions to see START suggestions.')}")
         print(f"  {DIM('Example: python med_checker.py [drugs] --conditions \"heart failure, diabetes\"')}")
@@ -156,7 +190,7 @@ def run_full_check(drug_names: list, conditions: list = None):
     print(SEP2)
 
     total_flags = (1 if acb_flag else 0) + bf + sf
-    if total_flags == 0:
+    if total_flags == 0 and i_total == 0:
         print(f"  {GREEN('✅  No major flags identified across all three tools.')}")
     else:
         if acb_flag:
@@ -178,6 +212,8 @@ def run_full_check(drug_names: list, conditions: list = None):
             print(f"  {RED('⚠  Beers 2023: ')} {bf} drug(s) flagged ({', '.join(detail)})")
         if sf > 0:
             print(f"  {RED('⚠  STOPP v3:   ')} {sf} drug(s) to consider deprescribing")
+        if i_total > 0:
+            print(f"  {RED('⚠  Interactions: ')} {i_total} clinically significant interaction(s) found")
 
     start_hits_count = len(get_start_suggestions(conditions)) if conditions else 0
     if start_hits_count > 0:
@@ -185,7 +221,7 @@ def run_full_check(drug_names: list, conditions: list = None):
 
     print(f"\n  {DIM('Disclaimer: For educational purposes only. Not a substitute for')}")
     print(f"  {DIM('clinical judgment. Apply to adults ≥65 years.')}")
-    print(f"  {DIM('ACB: acbcalc.com | Beers: AGS 2023 | STOPP/START: O Mahony et al. 2023')}")
+    print(f"  {DIM('ACB: acbcalc.com | Beers: AGS 2023 | STOPP/START: O Mahony et al. 2023 | Interactions: Medscape-style categories')}")
     print(BOLD(SEP) + "\n")
 
 
