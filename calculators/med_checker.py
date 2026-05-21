@@ -1,37 +1,30 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-╔══════════════════════════════════════════════════════════════════════╗
-║          COMPREHENSIVE GERIATRIC MEDICATION CHECKER                 ║
-║                                                                      ║
-║  Combines three validated screening tools for older adults (≥65):   ║
-║                                                                      ║
-║  1. ACB Calculator  — Anticholinergic Cognitive Burden score         ║
-║     (acbcalc.com database)                                           ║
-║                                                                      ║
-║  2. Beers Criteria  — AGS 2023 Potentially Inappropriate Meds        ║
-║     (J Am Geriatr Soc. 2023;71:2052-2081)                           ║
-║                                                                      ║
-║  3. STOPP/START v3  — European Inappropriate Prescribing Tool        ║
-║     (Eur Geriatr Med. 2023;14:625-632, CC BY 4.0)                   ║
-║                                                                      ║
-║  ⚕️  For educational / informational use only.                       ║
-║     Not a substitute for clinical judgment.                          ║
-╚══════════════════════════════════════════════════════════════════════╝
+Comprehensive Geriatric Medication Checker
+
+Combines three validated screening tools for older adults (>=65):
+
+1. ACB Calculator  - Anticholinergic Cognitive Burden score (acbcalc.com)
+2. Beers Criteria  - AGS 2023 Potentially Inappropriate Medications
+3. STOPP/START v3  - European Inappropriate Prescribing Tool
+4. Drug Interactions - Clinically significant interactions
+5. Duplicate Detection - Duplicate therapeutic classes
+6. Cumulative Risk Assessment - Aggregated risks across drugs
+7. START Suggestions - Medicines to consider starting
+
+For educational/informational use only. Not a substitute for clinical judgment.
 
 Usage:
     python med_checker.py amitriptyline diazepam omeprazole lisinopril
-
-    # With patient conditions for START criteria:
     python med_checker.py amitriptyline diazepam --conditions "heart failure, diabetes"
-
-    # Interactive mode (no args):
-    python med_checker.py
+    python med_checker.py  # Interactive mode
 """
 
 import sys
 import os
 
-# ── Pull in the three modules ─────────────────────────────────────────────────
+#  Pull in the modules 
 sys.path.insert(0, os.path.dirname(__file__))
 from acb_calculator import calculate_acb, score_label as acb_score_label
 from beers_criteria import check_drugs as check_beers, TABLE_LABELS
@@ -40,8 +33,10 @@ from stopp_start import (
     check_drugs_stopp, get_start_suggestions,
     STOPPEntry, STARTEntry
 )
+from duplicate_detection import check_duplicates
+from cumulative_risk import check_all_cumulative_risks
 
-# ─── Colour helpers (ANSI, graceful fallback) ──────────────────────────────────
+# --- Colour helpers (ANSI, graceful fallback) ----------------------------------
 def _c(code, text):
     try:
         if sys.stdout.isatty():
@@ -57,13 +52,59 @@ CYAN   = lambda t: _c("36", t)
 BOLD   = lambda t: _c("1",  t)
 DIM    = lambda t: _c("2",  t)
 
+# --- Safe unicode converter for Windows compatibility --------------------------
+def safe_text(text):
+    """Sanitize text to ensure it can be printed on Windows without encoding errors."""
+    if not isinstance(text, str):
+        return text
+    try:
+        # Try to encode/decode as ASCII to catch any non-ASCII chars
+        return text.encode('ascii').decode('ascii')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # If it has non-ASCII, use ignore mode
+        return text.encode('ascii', 'ignore').decode('ascii')
 
-# ─── Main report ───────────────────────────────────────────────────────────────
+def sanitize_entry_data(entry):
+    """Sanitize all string fields in a Beers/STOPP entry to be ASCII-safe."""
+    if hasattr(entry, '__dict__'):
+        # It's a dataclass
+        for attr_name in dir(entry):
+            if not attr_name.startswith('_'):
+                attr_val = getattr(entry, attr_name, None)
+                if isinstance(attr_val, str):
+                    # Replace common problematic Unicode characters
+                    attr_val = attr_val.replace('\u2265', '>=')  # >=
+                    attr_val = attr_val.replace('\u2264', '<=')  # <=
+                    attr_val = attr_val.replace('\u00b1', '+/-') # +-
+                    attr_val = attr_val.replace('\u2013', '-')   # en-dash
+                    attr_val = attr_val.replace('\u2014', '--')  # em-dash
+                    try:
+                        setattr(entry, attr_name, attr_val.encode('ascii', 'ignore').decode('ascii'))
+                    except:
+                        pass
+    return entry
+
+def safe_print(*args, **kwargs):
+    """Safe print that gracefully handles Unicode encoding issues."""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        # Convert all args to safe ASCII strings
+        safe_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                safe_args.append(safe_text(arg))
+            else:
+                safe_args.append(str(arg))
+        print(*safe_args, **kwargs)
+
+
+#  Main report 
 
 def run_full_check(drug_names: list, conditions: list = None):
     conditions = conditions or []
-    SEP  = "═" * 72
-    SEP2 = "─" * 72
+    SEP  = "=" * 72
+    SEP2 = "-" * 72
 
     print(f"\n{BOLD(SEP)}")
     print(BOLD("  COMPREHENSIVE GERIATRIC MEDICATION CHECKER"))
@@ -72,39 +113,39 @@ def run_full_check(drug_names: list, conditions: list = None):
         print(f"  Conditions    : {CYAN(', '.join(c.title() for c in conditions))}")
     print(BOLD(SEP))
 
-    # ── 1. ACB Score ─────────────────────────────────────────────────────────
+    # -- 1. ACB Score -------------------------------------------------------
     acb_result = calculate_acb(drug_names)
     total_acb  = acb_result["total_acb_score"]
     acb_flag   = total_acb >= 3
 
-    print(f"\n{BOLD('━━━  1.  ACB — Anticholinergic Cognitive Burden  ━━━')}")
+    print(f"\n{BOLD('--- 1. ACB - Anticholinergic Cognitive Burden ---')}")
     for d in acb_result["drugs"]:
         if d["score"] > 0:
-            icon = RED("⚠") if d["score"] >= 3 else YELLOW("⚠")
-            print(f"  {icon}  {d['input'].title():<25} ACB = {d['score']}  — {d['score_label']}")
+            icon = RED("") if d["score"] >= 3 else YELLOW("")
+            print(f"  {icon}  {d['input'].title():<25} ACB = {d['score']}  -- {d['score_label']}")
         else:
-            print(f"  {GREEN('✓')}  {d['input'].title():<25} ACB = 0   — No burden")
+            print(f"  {GREEN('*')}  {d['input'].title():<25} ACB = 0   -- No burden")
 
     acb_colour = RED if acb_flag else GREEN
     print(f"\n  {BOLD('Total ACB Score: ')} {acb_colour(str(total_acb))}")
     if acb_flag:
-        print(f"  {RED('HIGH RISK (≥3): confusion, falls, and mortality risk elevated')}")
+        print(f"  {RED('HIGH RISK (3): confusion, falls, and mortality risk elevated')}")
     else:
         print(f"  {GREEN('Lower risk (score < 3)')}")
     if acb_result["not_found"]:
         print(f"  {DIM('Not in ACB database (scored 0): ' + ', '.join(acb_result['not_found']))}")
 
-    # ── 2. Beers Criteria ────────────────────────────────────────────────────
+    #  2. Beers Criteria 
     beers_result = check_beers(drug_names)
 
-    print(f"\n{BOLD('━━━  2.  Beers Criteria 2023 — Potentially Inappropriate Meds  ━━━')}")
+    print(f"\n{BOLD('  2.  Beers Criteria 2023  Potentially Inappropriate Meds  ')}")
     for drug in beers_result["results"]:
         if not drug["flagged"]:
-            print(f"  {GREEN('✓')}  {drug['input'].title():<25} No Beers flags")
+            print(f"  {GREEN('')}  {drug['input'].title():<25} No Beers flags")
         else:
             for entry in drug["entries"]:
                 tbl_short = f"T{entry.table}"
-                icon = RED("🚫") if entry.table == "2" else YELLOW("⚠")
+                icon = RED("") if entry.table == "2" else YELLOW("")
                 print(f"  {icon}  {drug['input'].title():<25} [{tbl_short}] {entry.recommendation}")
                 print(f"       {DIM(entry.concern)}")
                 if entry.conditions:
@@ -117,16 +158,16 @@ def run_full_check(drug_names: list, conditions: list = None):
     flag_colour = RED if bf > 0 else GREEN
     print(f"\n  {BOLD('Beers flags: ')} {flag_colour(str(bf))}/{bt} drug(s) flagged")
 
-    # ── 3. STOPP ─────────────────────────────────────────────────────────────
+    #  3. STOPP 
     stopp_result = check_drugs_stopp(drug_names)
 
-    print(f"\n{BOLD('━━━  3.  STOPP v3 2023 — Drugs to Consider Stopping  ━━━')}")
+    print(f"\n{BOLD('  3.  STOPP v3 2023  Drugs to Consider Stopping  ')}")
     for drug in stopp_result["results"]:
         if not drug["flagged"]:
-            print(f"  {GREEN('✓')}  {drug['input'].title():<25} No STOPP flags")
+            print(f"  {GREEN('')}  {drug['input'].title():<25} No STOPP flags")
         else:
             for e in drug["entries"]:
-                print(f"  {RED('🛑')}  {drug['input'].title():<25} [{e.criterion_id}] {e.section}")
+                print(f"  {RED('')}  {drug['input'].title():<25} [{e.criterion_id}] {e.section}")
                 print(f"       {DIM('Condition: ' + e.condition)}")
                 print(f"       {DIM('Rationale: ' + e.rationale)}")
 
@@ -135,23 +176,23 @@ def run_full_check(drug_names: list, conditions: list = None):
     sflag_colour = RED if sf > 0 else GREEN
     print(f"\n  {BOLD('STOPP flags: ')} {sflag_colour(str(sf))}/{st} drug(s) flagged")
 
-    # ── 4. Drug-Drug Interactions ────────────────────────────────────────────
+    # -- 4. Drug-Drug Interactions ----------------------------------------
     interaction_result = check_interactions(drug_names)
 
-    print(f"\n{BOLD('━━━  4.  Drug-Drug Interactions  ━━━')}")
+    print(f"\n{BOLD('--- 4. Drug-Drug Interactions ---')}")
     if not interaction_result["interactions_found"]:
-        print(f"  {GREEN('✓')}  No clinically significant interactions found between the listed drugs")
+        print(f"  {GREEN('')}  No clinically significant interactions found between the listed drugs")
     else:
         for item in interaction_result["interactions_found"]:
             interaction = item["interaction"]
             severity = interaction.severity
             icon = {
-                "CONTRAINDICATED": RED("🚫"),
-                "SERIOUS": RED("⛔"),
-                "MONITOR": YELLOW("⚠"),
-                "MINOR": DIM("ℹ"),
-            }.get(severity, YELLOW("•"))
-            print(f"  {icon}  {item['drug_a'].title():<25} × {item['drug_b'].title()}  [{severity}]")
+                "CONTRAINDICATED": RED(""),
+                "SERIOUS": RED(""),
+                "MONITOR": YELLOW(""),
+                "MINOR": DIM(""),
+            }.get(severity, YELLOW(""))
+            print(f"  {icon}  {item['drug_a'].title():<25}  {item['drug_b'].title()}  [{severity}]")
             print(f"       Mechanism : {interaction.mechanism}")
             print(f"       Effect    : {interaction.effect}")
             print(f"       Management: {interaction.management}")
@@ -168,10 +209,59 @@ def run_full_check(drug_names: list, conditions: list = None):
         if sev_bits:
             print(f"  {DIM('Severity breakdown: ' + ', '.join(sev_bits))}")
 
-    # ── 5. START Suggestions ─────────────────────────────────────────────────
-    print(f"\n{BOLD('━━━  5.  START v3 2023 — Medicines to Consider Starting  ━━━')}")
+    # -- 5. Duplicate Therapeutic Classes ---------------------------------
+    dup_result = check_duplicates(drug_names)
+    dup_count = dup_result["duplicates_found"]
+
+    print(f"\n{BOLD('--- 5. Duplicate Therapeutic Classes ---')}")
+    if dup_count == 0:
+        print(f"  {GREEN('')}  No duplicate therapeutic classes detected")
+    else:
+        for dup in dup_result["duplicates"]:
+            icon = RED("") if dup["risk_level"] == "CONTRAINDICATED" else YELLOW("")
+            print(f"  {icon}  {BOLD(dup['class_name'])} [{dup['risk_level']}]")
+            print(f"       Drugs: {', '.join(dup['drugs'])}")
+            print(f"       {dup['warning']}")
+
+    dup_colour = RED if dup_count > 0 else GREEN
+    print(f"\n  {BOLD('Duplicate classes: ')} {dup_colour(str(dup_count))}/{len(drug_names)}")
+
+    # -- 6. Cumulative Risk Assessment ------------------------------------
+    cumulative_risks = check_all_cumulative_risks(drug_names)
+
+    print(f"\n{BOLD('--- 6. Cumulative Risk Assessment ---')}")
+    
+    # Bleeding risk
+    bleeding = cumulative_risks["bleeding"]
+    bleeding_drugs_count = len(bleeding["drugs"])
+    if bleeding_drugs_count > 0:
+        icon = RED("") if bleeding["risk_level"] in ["VERY HIGH", "HIGH"] else YELLOW("")
+        print(f"  {icon}  BLEEDING RISK: {BOLD(bleeding['risk_level'])}")
+        for drug in bleeding["drugs"]:
+            print(f"       - {drug['drug'].title()} ({drug['severity']})")
+    
+    # Serotonin risk
+    serotonin = cumulative_risks["serotonin"]
+    serotonin_drugs_count = len(serotonin["drugs"])
+    if serotonin_drugs_count > 0:
+        icon = RED("") if serotonin["risk_level"] in ["HIGH", "VERY HIGH"] else YELLOW("")
+        print(f"  {icon}  SEROTONIN SYNDROME RISK: {BOLD(serotonin['risk_level'])}")
+        for drug in serotonin["drugs"]:
+            print(f"       - {drug['drug'].title()} ({drug['severity']})")
+    
+    # CNS depression risk
+    cns = cumulative_risks["cns_depression"]
+    cns_drugs_count = len(cns["drugs"])
+    if cns_drugs_count > 0:
+        icon = RED("") if cns["risk_level"] in ["VERY HIGH", "HIGH"] else YELLOW("")
+        print(f"  {icon}  CNS DEPRESSION RISK: {BOLD(cns['risk_level'])}")
+        for drug in cns["drugs"]:
+            print(f"       - {drug['drug'].title()} ({drug['severity']})")
+
+    # -- 7. START Suggestions -------------------------------------------
+    print(f"\n{BOLD('--- 7. START v3 2023 - Medicines to Consider Starting ---')}")
     if not conditions:
-        print(f"  {DIM('No conditions provided — pass conditions to see START suggestions.')}")
+        print(f"  {DIM('No conditions provided  pass conditions to see START suggestions.')}")
         print(f"  {DIM('Example: python med_checker.py [drugs] --conditions \"heart failure, diabetes\"')}")
     else:
         start_hits = get_start_suggestions(conditions)
@@ -179,22 +269,22 @@ def run_full_check(drug_names: list, conditions: list = None):
             print(f"  {DIM('No START criteria matched for the given conditions.')}")
         else:
             for e in start_hits:
-                print(f"  {CYAN('💊')}  [{e.criterion_id}] {BOLD(e.drug_class)}")
+                print(f"  {CYAN('')}  [{e.criterion_id}] {BOLD(e.drug_class)}")
                 print(f"       Indication : {e.indication}")
                 if e.examples:
                     print(f"       Examples   : {', '.join(e.examples)}")
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    #  Summary 
     print(f"\n{BOLD(SEP)}")
     print(BOLD("  SUMMARY"))
     print(SEP2)
 
     total_flags = (1 if acb_flag else 0) + bf + sf
-    if total_flags == 0 and i_total == 0:
-        print(f"  {GREEN('✅  No major flags identified across all three tools.')}")
+    if total_flags == 0 and i_total == 0 and dup_count == 0 and (bleeding_drugs_count + serotonin_drugs_count + cns_drugs_count) == 0:
+        print(f"  {GREEN('  No major flags identified across all seven tools.')}")
     else:
         if acb_flag:
-            print(f"  {RED('⚠  ACB Score ≥3: High anticholinergic burden — review and reduce where possible')}")
+            print(f"  {RED('  ACB Score 3: High anticholinergic burden  review and reduce where possible')}")
         if bf > 0:
             t2 = sum(1 for d in beers_result["results"]
                      for e in d["entries"] if e.table == "2")
@@ -209,23 +299,32 @@ def run_full_check(drug_names: list, conditions: list = None):
             if t3: detail.append(f"{t3} condition-specific")
             if t4: detail.append(f"{t4} caution")
             if t6: detail.append(f"{t6} renal")
-            print(f"  {RED('⚠  Beers 2023: ')} {bf} drug(s) flagged ({', '.join(detail)})")
+            print(f"  {RED('  Beers 2023: ')} {bf} drug(s) flagged ({', '.join(detail)})")
         if sf > 0:
-            print(f"  {RED('⚠  STOPP v3:   ')} {sf} drug(s) to consider deprescribing")
+            print(f"  {RED('  STOPP v3:   ')} {sf} drug(s) to consider deprescribing")
         if i_total > 0:
-            print(f"  {RED('⚠  Interactions: ')} {i_total} clinically significant interaction(s) found")
+            print(f"  {RED('  Interactions: ')} {i_total} clinically significant interaction(s) found")
+        if dup_count > 0:
+            print(f"  {RED('  Duplicates:   ')} {dup_count} duplicate therapeutic class(es) detected")
+        if bleeding_drugs_count > 0:
+            print(f"  {RED('  Bleeding:     ')} Cumulative bleeding risk ({bleeding['risk_level']})")
+        if serotonin_drugs_count > 0:
+            print(f"  {RED('  Serotonin:    ')} Serotonin syndrome risk ({serotonin['risk_level']})")
+        if cns_drugs_count > 0:
+            print(f"  {RED('  CNS Depr.:    ')} CNS depression risk ({cns['risk_level']})")
 
     start_hits_count = len(get_start_suggestions(conditions)) if conditions else 0
     if start_hits_count > 0:
-        print(f"  {CYAN('💊  START v3:    ')} {start_hits_count} prescribing omission(s) to consider")
+        print(f"  {CYAN('  START v3:    ')} {start_hits_count} prescribing omission(s) to consider")
 
     print(f"\n  {DIM('Disclaimer: For educational purposes only. Not a substitute for')}")
-    print(f"  {DIM('clinical judgment. Apply to adults ≥65 years.')}")
-    print(f"  {DIM('ACB: acbcalc.com | Beers: AGS 2023 | STOPP/START: O Mahony et al. 2023 | Interactions: Medscape-style categories')}")
+    print(f"  {DIM('clinical judgment. Apply to adults 65 years.')}")
+    print(f"  {DIM('ACB: acbcalc.com | Beers: AGS 2023 | STOPP/START: O Mahony et al. 2023 |')}")
+    print(f"  {DIM('Interactions: Medscape | Duplicates & Risk: Clinical pharmacology')}")
     print(BOLD(SEP) + "\n")
 
 
-# ─── CLI ───────────────────────────────────────────────────────────────────────
+#  CLI 
 
 def main():
     args = sys.argv[1:]

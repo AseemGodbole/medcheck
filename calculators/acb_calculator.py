@@ -8,7 +8,7 @@ ACB Score meaning:
   2 = Definite anticholinergic burden (moderate)
   3 = Definite anticholinergic burden (high)
 
-Total score >= 3 → HIGH RISK: associated with increased confusion, falls, and mortality
+Total score >= 3  HIGH RISK: associated with increased confusion, falls, and mortality
 """
 
 # Full ACB drug database from acbcalc.com
@@ -545,7 +545,7 @@ ACB_DATABASE = {
     "pramipexole": (1, []),
 }
 
-# Build a reverse lookup: brand name → generic name
+# Build a reverse lookup: brand name  generic name
 BRAND_TO_GENERIC = {}
 for generic, (score, brands) in ACB_DATABASE.items():
     for brand in brands:
@@ -637,10 +637,10 @@ def calculate_acb(drug_names: list[str]) -> dict:
         "total_acb_score": total_score,
         "high_risk": high_risk,
         "risk_summary": (
-            "⚠️  HIGH RISK (score ≥ 3): Associated with increased risk of confusion, falls, and mortality. "
+            "  HIGH RISK (score  3): Associated with increased risk of confusion, falls, and mortality. "
             "Please review medications and consider switching to lower-risk alternatives."
             if high_risk else
-            "✅ Lower risk (score < 3)"
+            " Lower risk (score < 3)"
         ),
         "not_found": not_found,
     }
@@ -658,27 +658,27 @@ def print_report(result: dict):
             if drug["brand_names"]:
                 print(f"  (Brands: {', '.join(drug['brand_names'])})", end="")
             print()
-        print(f"  Score:  {drug['score']}  —  {drug['score_label']}")
+        print(f"  Score:  {drug['score']}    {drug['score_label']}")
 
     print("\n" + "-" * 60)
     print(f"  TOTAL ACB SCORE:  {result['total_acb_score']}")
     print(f"  {result['risk_summary']}")
 
     if result["not_found"]:
-        print(f"\n  ⚠️  Not found in database (scored as 0): {', '.join(result['not_found'])}")
+        print(f"\n    Not found in database (scored as 0): {', '.join(result['not_found'])}")
 
     print("\n  Score guide:")
     print("    0 = No anticholinergic burden")
     print("    1 = Possible anticholinergic burden")
     print("    2 = Definite burden (moderate)")
     print("    3 = Definite burden (high)")
-    print("    ≥3 total = HIGH RISK")
+    print("    3 total = HIGH RISK")
     print("=" * 60)
-    print("\n  ⚕️  For informational/educational use only.")
+    print("\n    For informational/educational use only.")
     print("  Not a substitute for professional medical advice.\n")
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+#  Main 
 
 if __name__ == "__main__":
     import sys
@@ -688,7 +688,7 @@ if __name__ == "__main__":
         drugs = sys.argv[1:]
     else:
         # Interactive mode
-        print("ACB Calculator — enter drug names separated by commas:")
+        print("ACB Calculator  enter drug names separated by commas:")
         raw = input("> ")
         drugs = [d.strip() for d in raw.split(",") if d.strip()]
 
