@@ -1,0 +1,18 @@
+{
+  "amitriptyline": { "score": 3, "brands": ["elavil"] },
+  "oxybutynin": { "score": 3, "brands": ["ditropan"] },
+  "doxepin": { "score": 3, "brands": ["sinequan"] },
+  "chlorpromazine": { "score": 2, "brands": ["thorazine"] },
+  "olanzapine": { "score": 2, "brands": ["zyprexa"] },
+  "chlorpheniramine": { "score": 3, "brands": ["piriton"] },
+  "promethazine": { "score": 1, "brands": ["phenergan"] },
+  "trazodone": { "score": 1, "brands": [] },
+  "diphenhydramine": { "score": 3, "brands": ["benadryl"] },
+  "paracetamol": { "score": 0, "brands": ["tylenol"] },
+  "acetaminophen": { "score": 0, "brands": ["tylenol"] },
+  "ibuprofen": { "score": 0, "brands": [] },
+  "aspirin": { "score": 0, "brands": [] },
+  "diazepam": { "score": 1, "brands": ["valium"] },
+  "omeprazole": { "score": 0, "brands": ["prilosec"] },
+  "lisinopril": { "score": 0, "brands": [] }
+}

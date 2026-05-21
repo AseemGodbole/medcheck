@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Medication Checker — Demo</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%237dd3fc'/%3E%3Ctext x='32' y='42' font-size='36' text-anchor='middle' fill='%23052238' font-family='Arial' font-weight='700'%3EM%3C/text%3E%3C/svg%3E">
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="logo">MedCheck</div>
+        <div class="subtitle">Interactive demo — Anticholinergic Burden &amp; Beers quick-check</div>
+      </header>
+
+      <section class="panel input-panel">
+        <h2>Enter medicines</h2>
+        <p class="muted">Comma-separated list. Try: <strong>amitriptyline, diazepam, omeprazole, lisinopril</strong></p>
+        <textarea id="drugs" placeholder="e.g. amitriptyline, diazepam, omeprazole" rows="3"></textarea>
+
+        <div class="form-row">
+          <label>Patient conditions (optional)</label>
+          <input id="conditions" placeholder="heart failure, diabetes" />
+        </div>
+
+        <div class="actions">
+          <button id="run">Run check</button>
+          <button id="clear" class="secondary">Clear</button>
+        </div>
+      </section>
+
+      <section class="results-grid" id="results" aria-live="polite">
+        <article class="card summary">
+          <h3>Summary</h3>
+          <div id="summaryHtml">No results yet. Click <em>Run check</em>.</div>
+        </article>
+
+        <article class="card acb">
+          <h3>ACB Score</h3>
+          <div id="acbDetail">—</div>
+        </article>
+
+        <article class="card beers">
+          <h3>Beers Quick Check</h3>
+          <div id="beersDetail">—</div>
+        </article>
+      </section>
+
+      <footer class="footer">
+        <small>Static demo — for demonstration only. Not clinical advice.</small>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

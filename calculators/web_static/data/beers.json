@@ -1,0 +1,8 @@
+{
+  "diazepam": ["Benzodiazepine – increased risk of sedation, falls, and cognitive impairment"],
+  "amitriptyline": ["Tricyclic antidepressant – anticholinergic and sedating; avoid in older adults"],
+  "omeprazole": ["PPI — avoid long-term scheduled use (>8 weeks) unless indicated"],
+  "digoxin": ["Digoxin – avoid as first-line; dose caution in older adults"],
+  "warfarin": ["Warfarin – monitor closely; DOACs often preferred"],
+  "diphenhydramine": ["First-generation antihistamine – highly anticholinergic; avoid"]
+}

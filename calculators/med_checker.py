@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""
+╔══════════════════════════════════════════════════════════════════════╗
+║          COMPREHENSIVE GERIATRIC MEDICATION CHECKER                 ║
+║                                                                      ║
+║  Combines three validated screening tools for older adults (≥65):   ║
+║                                                                      ║
+║  1. ACB Calculator  — Anticholinergic Cognitive Burden score         ║
+║     (acbcalc.com database)                                           ║
+║                                                                      ║
+║  2. Beers Criteria  — AGS 2023 Potentially Inappropriate Meds        ║
+║     (J Am Geriatr Soc. 2023;71:2052-2081)                           ║
+║                                                                      ║
+║  3. STOPP/START v3  — European Inappropriate Prescribing Tool        ║
+║     (Eur Geriatr Med. 2023;14:625-632, CC BY 4.0)                   ║
+║                                                                      ║
+║  ⚕️  For educational / informational use only.                       ║
+║     Not a substitute for clinical judgment.                          ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+Usage:
+    python med_checker.py amitriptyline diazepam omeprazole lisinopril
+
+    # With patient conditions for START criteria:
+    python med_checker.py amitriptyline diazepam --conditions "heart failure, diabetes"
+
+    # Interactive mode (no args):
+    python med_checker.py
+"""
+
+import sys
+import os
+
+# ── Pull in the three modules ─────────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(__file__))
+from acb_calculator import calculate_acb, score_label as acb_score_label
+from beers_criteria import check_drugs as check_beers, TABLE_LABELS
+from stopp_start import (
+    check_drugs_stopp, get_start_suggestions,
+    STOPPEntry, STARTEntry
+)
+
+# ─── Colour helpers (ANSI, graceful fallback) ──────────────────────────────────
+def _c(code, text):
+    try:
+        if sys.stdout.isatty():
+            return f"\033[{code}m{text}\033[0m"
+    except Exception:
+        pass
+    return text
+
+RED    = lambda t: _c("31", t)
+YELLOW = lambda t: _c("33", t)
+GREEN  = lambda t: _c("32", t)
+CYAN   = lambda t: _c("36", t)
+BOLD   = lambda t: _c("1",  t)
+DIM    = lambda t: _c("2",  t)
+
+
+# ─── Main report ───────────────────────────────────────────────────────────────
+
+def run_full_check(drug_names: list, conditions: list = None):
+    conditions = conditions or []
+    SEP  = "═" * 72
+    SEP2 = "─" * 72
+
+    print(f"\n{BOLD(SEP)}")
+    print(BOLD("  COMPREHENSIVE GERIATRIC MEDICATION CHECKER"))
+    print(f"  Drugs reviewed: {CYAN(', '.join(d.title() for d in drug_names))}")
+    if conditions:
+        print(f"  Conditions    : {CYAN(', '.join(c.title() for c in conditions))}")
+    print(BOLD(SEP))
+
+    # ── 1. ACB Score ─────────────────────────────────────────────────────────
+    acb_result = calculate_acb(drug_names)
+    total_acb  = acb_result["total_acb_score"]
+    acb_flag   = total_acb >= 3
+
+    print(f"\n{BOLD('━━━  1.  ACB — Anticholinergic Cognitive Burden  ━━━')}")
+    for d in acb_result["drugs"]:
+        if d["score"] > 0:
+            icon = RED("⚠") if d["score"] >= 3 else YELLOW("⚠")
+            print(f"  {icon}  {d['input'].title():<25} ACB = {d['score']}  — {d['score_label']}")
+        else:
+            print(f"  {GREEN('✓')}  {d['input'].title():<25} ACB = 0   — No burden")
+
+    acb_colour = RED if acb_flag else GREEN
+    print(f"\n  {BOLD('Total ACB Score: ')} {acb_colour(str(total_acb))}")
+    if acb_flag:
+        print(f"  {RED('HIGH RISK (≥3): confusion, falls, and mortality risk elevated')}")
+    else:
+        print(f"  {GREEN('Lower risk (score < 3)')}")
+    if acb_result["not_found"]:
+        print(f"  {DIM('Not in ACB database (scored 0): ' + ', '.join(acb_result['not_found']))}")
+
+    # ── 2. Beers Criteria ────────────────────────────────────────────────────
+    beers_result = check_beers(drug_names)
+
+    print(f"\n{BOLD('━━━  2.  Beers Criteria 2023 — Potentially Inappropriate Meds  ━━━')}")
+    for drug in beers_result["results"]:
+        if not drug["flagged"]:
+            print(f"  {GREEN('✓')}  {drug['input'].title():<25} No Beers flags")
+        else:
+            for entry in drug["entries"]:
+                tbl_short = f"T{entry.table}"
+                icon = RED("🚫") if entry.table == "2" else YELLOW("⚠")
+                print(f"  {icon}  {drug['input'].title():<25} [{tbl_short}] {entry.recommendation}")
+                print(f"       {DIM(entry.concern)}")
+                if entry.conditions:
+                    print(f"       {DIM('Conditions: ' + ', '.join(entry.conditions))}")
+                if entry.renal_threshold:
+                    print(f"       {DIM('Renal: ' + entry.renal_threshold)}")
+
+    bf = beers_result["flagged"]
+    bt = beers_result["total_drugs"]
+    flag_colour = RED if bf > 0 else GREEN
+    print(f"\n  {BOLD('Beers flags: ')} {flag_colour(str(bf))}/{bt} drug(s) flagged")
+
+    # ── 3. STOPP ─────────────────────────────────────────────────────────────
+    stopp_result = check_drugs_stopp(drug_names)
+
+    print(f"\n{BOLD('━━━  3.  STOPP v3 2023 — Drugs to Consider Stopping  ━━━')}")
+    for drug in stopp_result["results"]:
+        if not drug["flagged"]:
+            print(f"  {GREEN('✓')}  {drug['input'].title():<25} No STOPP flags")
+        else:
+            for e in drug["entries"]:
+                print(f"  {RED('🛑')}  {drug['input'].title():<25} [{e.criterion_id}] {e.section}")
+                print(f"       {DIM('Condition: ' + e.condition)}")
+                print(f"       {DIM('Rationale: ' + e.rationale)}")
+
+    sf = stopp_result["flagged"]
+    st = stopp_result["total"]
+    sflag_colour = RED if sf > 0 else GREEN
+    print(f"\n  {BOLD('STOPP flags: ')} {sflag_colour(str(sf))}/{st} drug(s) flagged")
+
+    # ── 4. START Suggestions ─────────────────────────────────────────────────
+    print(f"\n{BOLD('━━━  4.  START v3 2023 — Medicines to Consider Starting  ━━━')}")
+    if not conditions:
+        print(f"  {DIM('No conditions provided — pass conditions to see START suggestions.')}")
+        print(f"  {DIM('Example: python med_checker.py [drugs] --conditions \"heart failure, diabetes\"')}")
+    else:
+        start_hits = get_start_suggestions(conditions)
+        if not start_hits:
+            print(f"  {DIM('No START criteria matched for the given conditions.')}")
+        else:
+            for e in start_hits:
+                print(f"  {CYAN('💊')}  [{e.criterion_id}] {BOLD(e.drug_class)}")
+                print(f"       Indication : {e.indication}")
+                if e.examples:
+                    print(f"       Examples   : {', '.join(e.examples)}")
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    print(f"\n{BOLD(SEP)}")
+    print(BOLD("  SUMMARY"))
+    print(SEP2)
+
+    total_flags = (1 if acb_flag else 0) + bf + sf
+    if total_flags == 0:
+        print(f"  {GREEN('✅  No major flags identified across all three tools.')}")
+    else:
+        if acb_flag:
+            print(f"  {RED('⚠  ACB Score ≥3: High anticholinergic burden — review and reduce where possible')}")
+        if bf > 0:
+            t2 = sum(1 for d in beers_result["results"]
+                     for e in d["entries"] if e.table == "2")
+            t3 = sum(1 for d in beers_result["results"]
+                     for e in d["entries"] if e.table == "3")
+            t4 = sum(1 for d in beers_result["results"]
+                     for e in d["entries"] if e.table == "4")
+            t6 = sum(1 for d in beers_result["results"]
+                     for e in d["entries"] if e.table == "6")
+            detail = []
+            if t2: detail.append(f"{t2} always-avoid")
+            if t3: detail.append(f"{t3} condition-specific")
+            if t4: detail.append(f"{t4} caution")
+            if t6: detail.append(f"{t6} renal")
+            print(f"  {RED('⚠  Beers 2023: ')} {bf} drug(s) flagged ({', '.join(detail)})")
+        if sf > 0:
+            print(f"  {RED('⚠  STOPP v3:   ')} {sf} drug(s) to consider deprescribing")
+
+    start_hits_count = len(get_start_suggestions(conditions)) if conditions else 0
+    if start_hits_count > 0:
+        print(f"  {CYAN('💊  START v3:    ')} {start_hits_count} prescribing omission(s) to consider")
+
+    print(f"\n  {DIM('Disclaimer: For educational purposes only. Not a substitute for')}")
+    print(f"  {DIM('clinical judgment. Apply to adults ≥65 years.')}")
+    print(f"  {DIM('ACB: acbcalc.com | Beers: AGS 2023 | STOPP/START: O Mahony et al. 2023')}")
+    print(BOLD(SEP) + "\n")
+
+
+# ─── CLI ───────────────────────────────────────────────────────────────────────
+
+def main():
+    args = sys.argv[1:]
+
+    # Parse --conditions flag
+    conditions = []
+    if "--conditions" in args:
+        idx = args.index("--conditions")
+        cond_str = args[idx + 1] if idx + 1 < len(args) else ""
+        conditions = [c.strip() for c in cond_str.split(",") if c.strip()]
+        args = args[:idx] + args[idx + 2:]
+
+    drugs = [a.strip() for a in args if a.strip()]
+
+    if not drugs:
+        print("=" * 60)
+        print("  COMPREHENSIVE GERIATRIC MEDICATION CHECKER")
+        print("=" * 60)
+        raw = input("  Enter drug names (comma-separated):\n  > ")
+        drugs = [d.strip() for d in raw.split(",") if d.strip()]
+        if not drugs:
+            print("No drugs entered. Exiting.")
+            return
+        cond_raw = input("\n  Enter patient conditions for START criteria")
+        print("  (e.g. 'heart failure, diabetes, osteoporosis') or press Enter to skip:")
+        cond_input = input("  > ").strip()
+        if cond_input:
+            conditions = [c.strip() for c in cond_input.split(",") if c.strip()]
+
+    run_full_check(drugs, conditions)
+
+
+if __name__ == "__main__":
+    main()

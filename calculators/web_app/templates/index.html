@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedCheck — Medication Safety</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%236366f1'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'%3EM%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <main>
+    <div class="hero">
+      <h1>MedCheck</h1>
+      <p>Medication safety screening for older adults (≥65)</p>
+    </div>
+
+    <div class="container">
+      <section class="panel">
+        <h2>Enter Medications</h2>
+        <textarea id="drugs" placeholder="e.g. amitriptyline, diazepam, omeprazole, lisinopril" rows="4"></textarea>
+        
+        <label>Patient Conditions (optional)</label>
+        <input id="conditions" type="text" placeholder="e.g. heart failure, diabetes, osteoporosis">
+        
+        <div class="actions">
+          <button id="runBtn" class="btn-primary">Run Check</button>
+          <button id="clearBtn" class="btn-secondary">Clear</button>
+        </div>
+      </section>
+
+      <section id="results" class="panel hidden">
+        <h2>Report</h2>
+        <pre id="reportText"></pre>
+      </section>
+
+      <section id="error" class="panel error hidden">
+        <p id="errorText"></p>
+      </section>
+
+      <section id="loading" class="panel loading hidden">
+        <p>Analyzing medications...</p>
+      </section>
+    </div>
+
+    <footer>
+      <small>Demo for educational purposes only. Not a substitute for clinical judgment.</small>
+    </footer>
+  </main>
+
+  <script>
+    const drugsEl = document.getElementById('drugs');
+    const conditionsEl = document.getElementById('conditions');
+    const runBtn = document.getElementById('runBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const resultsEl = document.getElementById('results');
+    const reportEl = document.getElementById('reportText');
+    const errorEl = document.getElementById('error');
+    const errorTextEl = document.getElementById('errorText');
+    const loadingEl = document.getElementById('loading');
+
+    // Load demo data
+    drugsEl.value = 'amitriptyline, diazepam, omeprazole, lisinopril';
+    conditionsEl.value = 'heart failure, diabetes';
+
+    runBtn.addEventListener('click', async () => {
+      const drugs = drugsEl.value.trim();
+      const conditions = conditionsEl.value.trim();
+
+      if (!drugs) {
+        errorTextEl.textContent = 'Please enter at least one medication.';
+        errorEl.classList.remove('hidden');
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      errorEl.classList.add('hidden');
+      resultsEl.classList.add('hidden');
+      loadingEl.classList.remove('hidden');
+      runBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ drugs, conditions })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Request failed');
+        }
+
+        reportEl.textContent = data.report;
+        resultsEl.classList.remove('hidden');
+      } catch (err) {
+        errorTextEl.textContent = 'Error: ' + err.message;
+        errorEl.classList.remove('hidden');
+      } finally {
+        loadingEl.classList.add('hidden');
+        runBtn.disabled = false;
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      drugsEl.value = '';
+      conditionsEl.value = '';
+      resultsEl.classList.add('hidden');
+      errorEl.classList.add('hidden');
+      loadingEl.classList.add('hidden');
+    });
+
+    // Auto-run on load with demo data
+    window.addEventListener('load', () => {
+      runBtn.click();
+    });
+  </script>
+</body>
+</html>
