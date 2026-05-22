@@ -138,12 +138,35 @@ def run_full_check(drug_names: list, conditions: list = None):
     #  2. Beers Criteria 
     beers_result = check_beers(drug_names)
 
-    print(f"\n{BOLD('  2.  Beers Criteria 2023  Potentially Inappropriate Meds  ')}")
+    print(f"\n{BOLD('--- 2. Beers Criteria 2023 - Potentially Inappropriate Meds ---')}")
+    # Show only entries that are DEFINITE or match provided patient conditions
+    displayed_beers_flags = 0
+    bt = beers_result["total_drugs"]
+    provided_conditions = [c.lower() for c in conditions]
     for drug in beers_result["results"]:
         if not drug["flagged"]:
             print(f"  {GREEN('')}  {drug['input'].title():<25} No Beers flags")
         else:
+            # Filter entries by condition match: if entry.conditions empty -> definite flag, show it
+            shown_any = False
             for entry in drug["entries"]:
+                entry_conditions = [ec.lower() for ec in (entry.conditions or [])]
+                condition_match = False
+                if not entry_conditions:
+                    condition_match = True
+                else:
+                    for pc in provided_conditions:
+                        for ec in entry_conditions:
+                            if pc and (ec in pc or pc in ec or ec.split()[0] == pc.split()[0]):
+                                condition_match = True
+                                break
+                        if condition_match:
+                            break
+
+                if not condition_match:
+                    # skip condition-specific entry when patient conditions not provided/matching
+                    continue
+
                 tbl_short = f"T{entry.table}"
                 icon = RED("") if entry.table == "2" else YELLOW("")
                 print(f"  {icon}  {drug['input'].title():<25} [{tbl_short}] {entry.recommendation}")
@@ -152,29 +175,54 @@ def run_full_check(drug_names: list, conditions: list = None):
                     print(f"       {DIM('Conditions: ' + ', '.join(entry.conditions))}")
                 if entry.renal_threshold:
                     print(f"       {DIM('Renal: ' + entry.renal_threshold)}")
+                shown_any = True
+                displayed_beers_flags += 1
 
-    bf = beers_result["flagged"]
-    bt = beers_result["total_drugs"]
+            if not shown_any:
+                print(f"  {GREEN('')}  {drug['input'].title():<25} No relevant Beers flags for provided conditions")
+
+    bf = displayed_beers_flags
     flag_colour = RED if bf > 0 else GREEN
-    print(f"\n  {BOLD('Beers flags: ')} {flag_colour(str(bf))}/{bt} drug(s) flagged")
+    print(f"\n  {BOLD('Beers flags (shown): ')} {flag_colour(str(bf))}/{bt} drug(s) flagged")
 
     #  3. STOPP 
     stopp_result = check_drugs_stopp(drug_names)
 
-    print(f"\n{BOLD('  3.  STOPP v3 2023  Drugs to Consider Stopping  ')}")
+    print(f"\n{BOLD('--- 3. STOPP v3 2023 - Drugs to Consider Stopping ---')}")
+    displayed_stopp_flags = 0
+    st = stopp_result["total"]
     for drug in stopp_result["results"]:
         if not drug["flagged"]:
             print(f"  {GREEN('')}  {drug['input'].title():<25} No STOPP flags")
         else:
+            shown_any = False
             for e in drug["entries"]:
+                # STOPP entries often have e.condition; only show if it matches provided conditions or is general
+                entry_cond = (e.condition or '').lower()
+                condition_match = False
+                if not entry_cond.strip():
+                    condition_match = True
+                else:
+                    for pc in provided_conditions:
+                        if pc and (entry_cond in pc or pc in entry_cond or entry_cond.split()[0] == pc.split()[0]):
+                            condition_match = True
+                            break
+
+                if not condition_match:
+                    continue
+
                 print(f"  {RED('')}  {drug['input'].title():<25} [{e.criterion_id}] {e.section}")
                 print(f"       {DIM('Condition: ' + e.condition)}")
                 print(f"       {DIM('Rationale: ' + e.rationale)}")
+                shown_any = True
+                displayed_stopp_flags += 1
 
-    sf = stopp_result["flagged"]
-    st = stopp_result["total"]
+            if not shown_any:
+                print(f"  {GREEN('')}  {drug['input'].title():<25} No relevant STOPP flags for provided conditions")
+
+    sf = displayed_stopp_flags
     sflag_colour = RED if sf > 0 else GREEN
-    print(f"\n  {BOLD('STOPP flags: ')} {sflag_colour(str(sf))}/{st} drug(s) flagged")
+    print(f"\n  {BOLD('STOPP flags (shown): ')} {sflag_colour(str(sf))}/{st} drug(s) flagged")
 
     # -- 4. Drug-Drug Interactions ----------------------------------------
     interaction_result = check_interactions(drug_names)
@@ -317,10 +365,12 @@ def run_full_check(drug_names: list, conditions: list = None):
     if start_hits_count > 0:
         print(f"  {CYAN('  START v3:    ')} {start_hits_count} prescribing omission(s) to consider")
 
-    print(f"\n  {DIM('Disclaimer: For educational purposes only. Not a substitute for')}")
-    print(f"  {DIM('clinical judgment. Apply to adults 65 years.')}")
-    print(f"  {DIM('ACB: acbcalc.com | Beers: AGS 2023 | STOPP/START: O Mahony et al. 2023 |')}")
-    print(f"  {DIM('Interactions: Medscape | Duplicates & Risk: Clinical pharmacology')}")
+    # Improved disclaimer wording and formatting
+    print("\n  DISCLAIMER:")
+    print(f"    This tool is for information and educational purposes only — not medical advice.")
+    print(f"    Do NOT change medication without consulting a qualified healthcare professional.")
+    print(f"    Apply recommendations with clinical judgment for adults aged 65 and over.")
+    print("\n    Sources: ACB (acbcalc.com) | AGS Beers Criteria 2023 | STOPP/START v3 2023 | Medscape interactions")
     print(BOLD(SEP) + "\n")
 
 
