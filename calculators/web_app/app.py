@@ -10,13 +10,23 @@ sys.path.insert(0, parent_dir)
 from med_checker import run_full_check
 from io import StringIO
 from contextlib import redirect_stdout
+import time
+import subprocess
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Determine an asset version string for cache-busting.
+    # Prefer environment variable `ASSET_VERSION`, fall back to git short SHA, else timestamp.
+    asset_version = os.environ.get('ASSET_VERSION')
+    if not asset_version:
+        try:
+            asset_version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=parent_dir).decode().strip()
+        except Exception:
+            asset_version = str(int(time.time()))
+    return render_template('index.html', asset_version=asset_version)
 
 @app.route('/api/check', methods=['POST'])
 def api_check():
