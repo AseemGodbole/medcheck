@@ -35,6 +35,7 @@ from stopp_start import (
 )
 from duplicate_detection import check_duplicates
 from cumulative_risk import check_all_cumulative_risks
+from drug_name_resolver import resolve_drug_names
 
 # --- Colour helpers (ANSI, graceful fallback) ----------------------------------
 def _c(code, text):
@@ -103,18 +104,21 @@ def safe_print(*args, **kwargs):
 
 def run_full_check(drug_names: list, conditions: list = None):
     conditions = conditions or []
+    resolved_drug_names, resolution_notes = resolve_drug_names(drug_names)
     SEP  = "=" * 72
     SEP2 = "-" * 72
 
     print(f"\n{BOLD(SEP)}")
     print(BOLD("  COMPREHENSIVE GERIATRIC MEDICATION CHECKER"))
-    print(f"  Drugs reviewed: {CYAN(', '.join(d.title() for d in drug_names))}")
+    print(f"  Drugs reviewed: {CYAN(', '.join(d.title() for d in resolved_drug_names))}")
     if conditions:
         print(f"  Conditions    : {CYAN(', '.join(c.title() for c in conditions))}")
+    if resolution_notes:
+        print(f"  Brand names   : {DIM('; '.join(resolution_notes))}")
     print(BOLD(SEP))
 
     # -- 1. ACB Score -------------------------------------------------------
-    acb_result = calculate_acb(drug_names)
+    acb_result = calculate_acb(resolved_drug_names)
     total_acb  = acb_result["total_acb_score"]
     acb_flag   = total_acb >= 3
 
@@ -136,7 +140,7 @@ def run_full_check(drug_names: list, conditions: list = None):
         print(f"  {DIM('Not in ACB database (scored 0): ' + ', '.join(acb_result['not_found']))}")
 
     #  2. Beers Criteria 
-    beers_result = check_beers(drug_names)
+    beers_result = check_beers(resolved_drug_names)
 
     print(f"\n{BOLD('--- 2. Beers Criteria 2023 - Potentially Inappropriate Meds ---')}")
     # Show only entries that are DEFINITE or match provided patient conditions
@@ -186,7 +190,7 @@ def run_full_check(drug_names: list, conditions: list = None):
     print(f"\n  {BOLD('Beers flags (shown): ')} {flag_colour(str(bf))}/{bt} drug(s) flagged")
 
     #  3. STOPP 
-    stopp_result = check_drugs_stopp(drug_names)
+    stopp_result = check_drugs_stopp(resolved_drug_names)
 
     print(f"\n{BOLD('--- 3. STOPP v3 2023 - Drugs to Consider Stopping ---')}")
     displayed_stopp_flags = 0
@@ -225,7 +229,7 @@ def run_full_check(drug_names: list, conditions: list = None):
     print(f"\n  {BOLD('STOPP flags (shown): ')} {sflag_colour(str(sf))}/{st} drug(s) flagged")
 
     # -- 4. Drug-Drug Interactions ----------------------------------------
-    interaction_result = check_interactions(drug_names)
+    interaction_result = check_interactions(resolved_drug_names)
 
     print(f"\n{BOLD('--- 4. Drug-Drug Interactions ---')}")
     if not interaction_result["interactions_found"]:
@@ -258,7 +262,7 @@ def run_full_check(drug_names: list, conditions: list = None):
             print(f"  {DIM('Severity breakdown: ' + ', '.join(sev_bits))}")
 
     # -- 5. Duplicate Therapeutic Classes ---------------------------------
-    dup_result = check_duplicates(drug_names)
+    dup_result = check_duplicates(resolved_drug_names)
     dup_count = dup_result["duplicates_found"]
 
     print(f"\n{BOLD('--- 5. Duplicate Therapeutic Classes ---')}")
@@ -275,7 +279,7 @@ def run_full_check(drug_names: list, conditions: list = None):
     print(f"\n  {BOLD('Duplicate classes: ')} {dup_colour(str(dup_count))}/{len(drug_names)}")
 
     # -- 6. Cumulative Risk Assessment ------------------------------------
-    cumulative_risks = check_all_cumulative_risks(drug_names)
+    cumulative_risks = check_all_cumulative_risks(resolved_drug_names)
 
     print(f"\n{BOLD('--- 6. Cumulative Risk Assessment ---')}")
     
