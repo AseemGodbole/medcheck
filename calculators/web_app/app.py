@@ -8,6 +8,7 @@ parent_dir = os.path.dirname(app_dir)
 sys.path.insert(0, parent_dir)
 
 from med_checker import run_full_check
+from drug_name_resolver import resolve_drug_names
 from io import StringIO
 from contextlib import redirect_stdout
 import time
@@ -40,6 +41,9 @@ def api_check():
     drugs = [d.strip() for d in drugs_text.split(',') if d.strip()]
     conditions = [c.strip() for c in conditions_text.split(',') if c.strip()]
     
+    # Resolve brand names to generics
+    resolved_drugs, brand_notes = resolve_drug_names(drugs)
+    
     try:
         buffer = StringIO()
         with redirect_stdout(buffer):
@@ -50,6 +54,8 @@ def api_check():
             'success': True,
             'report': report,
             'drugs': drugs,
+            'resolved_drugs': resolved_drugs,
+            'brand_notes': brand_notes,
             'conditions': conditions
         })
     except Exception as e:

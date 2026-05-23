@@ -95,6 +95,15 @@
         <span class="step-desc">Your results</span>
       </div>
 
+      <!-- Brand Mapping Info -->
+      <div id="brandBanner" class="brand-banner hidden">
+        <div class="brand-icon">🏷️</div>
+        <div class="brand-body">
+          <p class="brand-title">Brand Names Resolved</p>
+          <ul id="brandList" class="brand-list"></ul>
+        </div>
+      </div>
+
       <!-- Critical Alert Banner -->
       <div id="criticalBanner" class="critical-banner hidden">
         <div class="critical-icon">!</div>
@@ -140,6 +149,8 @@ const errorBanner   = document.getElementById('errorBanner');
 const errorText     = document.getElementById('errorText');
 const loadingState  = document.getElementById('loadingState');
 const resultsSection= document.getElementById('resultsSection');
+const brandBanner   = document.getElementById('brandBanner');
+const brandList     = document.getElementById('brandList');
 const criticalBanner= document.getElementById('criticalBanner');
 const criticalList  = document.getElementById('criticalList');
 const resultCards   = document.getElementById('resultCards');
@@ -316,6 +327,16 @@ function buildCritical(sections) {
   criticalBanner.classList.remove('hidden');
 }
 
+// ── Build brand mapping banner ───────────────────────────────────────────────
+function buildBrand(brandNotes) {
+  if (!brandNotes || brandNotes.length === 0) {
+    brandBanner.classList.add('hidden');
+    return;
+  }
+  brandList.innerHTML = brandNotes.map(note => `<li>${note}</li>`).join('');
+  brandBanner.classList.remove('hidden');
+}
+
 // ── Run the check ───────────────────────────────────────────────────────────
 runBtn.addEventListener('click', async () => {
   const drugs      = drugsEl.value.trim();
@@ -346,6 +367,7 @@ runBtn.addEventListener('click', async () => {
     if (!res.ok) throw new Error(data.error || 'Server error');
 
     const sections = parseReport(data.report);
+    buildBrand(data.brand_notes);
     buildCritical(sections);
     buildCards(sections);
 
@@ -372,6 +394,7 @@ clearBtn.addEventListener('click', () => {
   loadingState.classList.add('hidden');
   emptyState.classList.remove('hidden');
   resultCards.innerHTML = '';
+  brandBanner.classList.add('hidden');
   criticalBanner.classList.add('hidden');
 });
 
