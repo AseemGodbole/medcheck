@@ -149,7 +149,16 @@ INTERACTIONS: list[Interaction] = [
         aliases_b=["azithromycin", "zithromax"],
     ),
 
-    #  Serotonin Syndrome (non-MAOI) 
+    #  Serotonin Syndrome (non-MAOI)
+    Interaction(
+        drugs=("ssri", "ssri"),
+        severity="CONTRAINDICATED",
+        mechanism="Pharmacodynamic — duplicate serotonergic class; no additional antidepressant benefit with combined SSRI use",
+        effect="Serotonin syndrome risk; no evidence of improved efficacy; increased adverse effects including bleeding, hyponatraemia, and GI effects",
+        management="Contraindicated. Do not combine two SSRIs. If switching agents, taper the first before starting the second with an appropriate washout period.",
+        aliases_a=["fluoxetine", "prozac", "sertraline", "zoloft", "paroxetine", "paxil", "citalopram", "celexa", "escitalopram", "lexapro", "fluvoxamine", "luvox"],
+        aliases_b=["fluoxetine", "prozac", "sertraline", "zoloft", "paroxetine", "paxil", "citalopram", "celexa", "escitalopram", "lexapro", "fluvoxamine", "luvox"],
+    ),
     Interaction(
         drugs=("ssri", "tramadol"),
         severity="SERIOUS",
@@ -795,13 +804,13 @@ def check_interactions(drug_names: list) -> dict:
             for ka in keys_a:
                 for kb in keys_b:
                     for iact in ALIAS_MAP.get(ka, []):
-                        pair_id = id(iact)
-                        all_a = [iact.drugs[0]] + iact.aliases_a
-                        all_b = [iact.drugs[1]] + iact.aliases_b
-                        all_names = [n.lower() for n in all_a + all_b]
-                        if ka in all_names and kb in all_names and ka != kb:
-                            if pair_id not in seen_pairs:
-                                seen_pairs.add(pair_id)
+                        a_side = {iact.drugs[0].lower()} | {n.lower() for n in iact.aliases_a}
+                        b_side = {iact.drugs[1].lower()} | {n.lower() for n in iact.aliases_b}
+                        # Require one matched key on each side (prevents cross-alias false matches)
+                        if (ka in a_side and kb in b_side) or (kb in a_side and ka in b_side):
+                            pair_key = (min(a, b), max(a, b), id(iact))
+                            if pair_key not in seen_pairs:
+                                seen_pairs.add(pair_key)
                                 results.append({
                                     "drug_a": a,
                                     "drug_b": b,

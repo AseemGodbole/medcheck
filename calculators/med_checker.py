@@ -387,13 +387,13 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
     conditions = conditions or []
     resolved_drug_names, resolution_notes = resolve_drug_names(drug_names)
 
-    acb_result       = calculate_acb(resolved_drug_names)
-    beers_result     = check_beers(resolved_drug_names)
-    stopp_result     = check_drugs_stopp(resolved_drug_names)
+    acb_result         = calculate_acb(resolved_drug_names)
+    beers_result       = check_beers(resolved_drug_names)
+    stopp_result       = check_drugs_stopp(resolved_drug_names)
     interaction_result = check_interactions(resolved_drug_names)
-    dup_result       = check_duplicates(resolved_drug_names)
-    cumulative_risks = check_all_cumulative_risks(resolved_drug_names)
-    start_hits       = get_start_suggestions(conditions) if conditions else []
+    dup_result         = check_duplicates(resolved_drug_names)
+    cumulative_risks   = check_all_cumulative_risks(resolved_drug_names)
+    start_hits         = get_start_suggestions(conditions, resolved_drug_names) if conditions else []
 
     # --- ACB ---
     acb_data = {
@@ -406,7 +406,7 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
         "not_found": acb_result["not_found"],
     }
 
-    # --- Beers: return ALL entries (condition-specific included) ---
+    # --- Beers ---
     beers_data = {"results": []}
     for drug in beers_result["results"]:
         entries = []
@@ -428,7 +428,7 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
             "entries": entries,
         })
 
-    # --- STOPP: return ALL entries ---
+    # --- STOPP ---
     stopp_data = {"results": []}
     for drug in stopp_result["results"]:
         entries = []
@@ -445,22 +445,45 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
             "entries": entries,
         })
 
-    # --- Interactions ---
-    interactions_data = {
-        "found": [],
-        "counts": interaction_result["counts"],
-        "pairs_checked": interaction_result["pairs_checked"],
-    }
+    # --- Interactions: deduplicate by drug pair, show all reasons, highest severity ---
+    sev_order = {"CONTRAINDICATED": 0, "SERIOUS": 1, "MONITOR": 2, "MINOR": 3}
+    from collections import defaultdict
+    pair_groups = defaultdict(list)
     for item in interaction_result["interactions_found"]:
-        iact = item["interaction"]
+        key = tuple(sorted([item["drug_a"], item["drug_b"]]))
+        pair_groups[key].append(item)
+
+    interactions_data = {"found": [], "pairs_checked": interaction_result["pairs_checked"]}
+    for (da, db), items in pair_groups.items():
+        items.sort(key=lambda x: sev_order.get(x["interaction"].severity, 99))
+        highest_sev = items[0]["interaction"].severity
+        reasons = []
+        seen_effects = set()
+        for item in items:
+            iact = item["interaction"]
+            effect_key = iact.effect[:60].lower()
+            if effect_key not in seen_effects:
+                seen_effects.add(effect_key)
+                reasons.append({
+                    "severity":   iact.severity,
+                    "mechanism":  iact.mechanism,
+                    "effect":     iact.effect,
+                    "management": iact.management,
+                })
         interactions_data["found"].append({
-            "drug_a":     item["drug_a"],
-            "drug_b":     item["drug_b"],
-            "severity":   iact.severity,
-            "mechanism":  iact.mechanism,
-            "effect":     iact.effect,
-            "management": iact.management,
+            "drug_a":   da,
+            "drug_b":   db,
+            "severity": highest_sev,
+            "reasons":  reasons,
         })
+
+    interactions_data["found"].sort(key=lambda x: sev_order.get(x["severity"], 99))
+    counts = {"CONTRAINDICATED": 0, "SERIOUS": 0, "MONITOR": 0, "MINOR": 0}
+    for finding in interactions_data["found"]:
+        sev = finding["severity"]
+        if sev in counts:
+            counts[sev] += 1
+    interactions_data["counts"] = counts
 
     # --- Duplicates ---
     dup_data = {
@@ -499,17 +522,48 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
         ]
     }
 
+    # --- Concerns: top-level clinical summary ---
+    concerns = []
+    for finding in interactions_data["found"]:
+        if finding["severity"] == "CONTRAINDICATED":
+            effects = "; ".join(r["effect"][:100] for r in finding["reasons"][:2])
+            concerns.append({
+                "level": "danger",
+                "text":  f"{finding['drug_a'].title()} + {finding['drug_b'].title()}: {effects}",
+            })
+    sero = cumulative_data["serotonin"]
+    if sero["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE-HIGH"):
+        lvl = "danger" if "VERY HIGH" in sero["risk_level"] else "warning"
+        drugs_txt = ", ".join(d["drug"].title() for d in sero["drugs"][:3])
+        concerns.append({"level": lvl,
+                         "text": f"Serotonin syndrome risk: {sero['risk_level']} ({drugs_txt})"})
+    bleed = cumulative_data["bleeding"]
+    if bleed["risk_level"] not in ("LOW", ""):
+        lvl = "danger" if "VERY HIGH" in bleed["risk_level"] else \
+              "warning" if bleed["risk_level"] in ("HIGH", "MODERATE-HIGH") else "caution"
+        concerns.append({"level": lvl,
+                         "text": f"Bleeding risk: {bleed['risk_level']}"})
+    if acb_data["high_risk"]:
+        concerns.append({"level": "warning",
+                         "text": f"High anticholinergic burden (ACB score {acb_data['total_score']}, threshold >= 3)"})
+    for r in beers_data["results"]:
+        for e in r["entries"]:
+            if e["table"] == "2":
+                concerns.append({"level": "danger",
+                                 "text": f"{r['drug'].title()} — Beers Table 2 (Always Avoid): {e['recommendation']}"})
+
     return {
-        "drugs_checked":     resolved_drug_names,
-        "conditions":        conditions,
-        "resolution_notes":  resolution_notes,
-        "acb":               acb_data,
-        "beers":             beers_data,
-        "stopp":             stopp_data,
-        "interactions":      interactions_data,
-        "duplicates":        dup_data,
-        "cumulative":        cumulative_data,
-        "start":             start_data,
+        "drugs_checked":    resolved_drug_names,
+        "conditions":       conditions,
+        "resolution_notes": resolution_notes,
+        "concerns":         concerns,
+        "acb":              acb_data,
+        "beers":            beers_data,
+        "stopp":            stopp_data,
+        "interactions":     interactions_data,
+        "duplicates":       dup_data,
+        "cumulative":       cumulative_data,
+        "start":            start_data,
     }
 
 

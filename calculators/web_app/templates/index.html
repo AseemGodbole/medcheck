@@ -370,25 +370,37 @@ function renderInteractions(d) {
 
   const rows = d.found.map(i => {
     const is = interactionSev(i.severity);
+    const reasonsHtml = i.reasons.map((r, idx) => {
+      const rs = interactionSev(r.severity);
+      const extraSevBadge = (i.reasons.length > 1 && idx > 0)
+        ? `<span class="reason-sev-badge fe-sev-${rs}">${esc(r.severity)}</span>`
+        : '';
+      return `<div class="reason-block${idx > 0 ? ' reason-block-extra' : ''}">
+        ${extraSevBadge}
+        <div class="fe-concern">${esc(r.effect)}</div>
+        <details class="fe-details">
+          <summary>Mechanism &amp; Management</summary>
+          <p><strong>Mechanism:</strong> ${esc(r.mechanism)}</p>
+          <p><strong>Management:</strong> ${esc(r.management)}</p>
+        </details>
+      </div>`;
+    }).join('');
     return `<div class="flag-entry fe-${is}">
       <div class="fe-head">
         <span class="fe-drug">${esc(cap(i.drug_a))} + ${esc(cap(i.drug_b))}</span>
         <span class="fe-table fe-sev-${is}">${esc(i.severity)}</span>
       </div>
-      <div class="fe-concern">${esc(i.effect)}</div>
-      <details class="fe-details">
-        <summary>Mechanism &amp; Management</summary>
-        <p><strong>Mechanism:</strong> ${esc(i.mechanism)}</p>
-        <p><strong>Management:</strong> ${esc(i.management)}</p>
-      </details>
+      ${reasonsHtml}
     </div>`;
   }).join('');
 
   const counts = d.counts;
-  const countLine = ['CONTRAINDICATED','SERIOUS','MONITOR','MINOR']
-    .filter(k => counts[k])
-    .map(k => `${k.toLowerCase()}: ${counts[k]}`)
-    .join(' &nbsp;|&nbsp; ');
+  const pairCount = d.found.length;
+  const countLine = `${pairCount} unique drug pair${pairCount !== 1 ? 's' : ''} &nbsp;|&nbsp; `
+    + ['CONTRAINDICATED','SERIOUS','MONITOR','MINOR']
+        .filter(k => counts[k])
+        .map(k => `${k.charAt(0) + k.slice(1).toLowerCase()}: ${counts[k]}`)
+        .join(' &nbsp;|&nbsp; ');
 
   return makeCard(sev, '&#9889;', 'Drug Interactions',
     'Clinically significant drug-drug combinations',
@@ -479,6 +491,20 @@ function renderSTART(d) {
     'Prescribing omissions for documented conditions', rows, false);
 }
 
+/* ── Concerns panel ───────────────────────────────────────────────────────── */
+function renderConcerns(concerns) {
+  if (!concerns || !concerns.length) return '';
+  const items = concerns.map(c => `
+    <div class="concern-item ci-${c.level}">
+      <span class="ci-icon">${c.level === 'danger' ? '&#9888;' : c.level === 'warning' ? '&#9888;' : '&#8226;'}</span>
+      <span class="ci-text">${esc(c.text)}</span>
+    </div>`).join('');
+  return `<div class="concerns-panel">
+    <div class="concerns-head">&#9888;&nbsp; Major Clinical Concerns</div>
+    <div class="concerns-body">${items}</div>
+  </div>`;
+}
+
 /* ── Summary bar ──────────────────────────────────────────────────────────── */
 function buildSummary(d) {
   const counters = { danger: 0, warning: 0, caution: 0 };
@@ -539,6 +565,7 @@ function buildSummary(d) {
 function renderResults(d) {
   buildSummary(d);
   resultCards.innerHTML = [
+    renderConcerns(d.concerns),
     renderACB(d.acb),
     renderBeers(d.beers),
     renderSTOPP(d.stopp),

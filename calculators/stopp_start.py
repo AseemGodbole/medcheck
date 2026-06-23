@@ -20,6 +20,7 @@ class STOPPEntry:
     condition: str       # when does this apply?
     rationale: str       # why stop
     brand_examples: list = field(default_factory=list)
+    requires_drugs: list = field(default_factory=list)  # co-prescriptions that must be present
 
 @dataclass
 class STARTEntry:
@@ -29,6 +30,7 @@ class STARTEntry:
     indication: str      # when is it indicated?
     rationale: str
     examples: list = field(default_factory=list)
+    suppressed_by: list = field(default_factory=list)  # current drugs that make this recommendation redundant
 
 
 #  STOPP DATABASE 
@@ -106,6 +108,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="B  Cardiovascular", criterion_id="B6",
         condition="In combination with verapamil or diltiazem",
         rationale="Risk of heart block, bradycardia, and cardiac arrest.",
+        requires_drugs=["verapamil", "calan", "isoptin", "diltiazem", "cardizem", "tiazac"],
     ),
     STOPPEntry(
         names=["diltiazem", "cardizem", "verapamil", "calan", "isoptin",
@@ -196,6 +199,8 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="C  Coagulation", criterion_id="C3",
         condition="Concurrent use of two or more antiplatelet agents without a clear indication for dual antiplatelet therapy",
         rationale="Additive bleeding risk.",
+        requires_drugs=["aspirin", "clopidogrel", "plavix", "ticagrelor", "brilinta",
+                        "prasugrel", "effient", "antiplatelet"],
     ),
     STOPPEntry(
         names=["dabigatran", "pradaxa"],
@@ -318,6 +323,9 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="D  CNS/Psychotropics", criterion_id="D10",
         condition="Concurrent benzodiazepine use",
         rationale="Risk of profound sedation, respiratory depression, coma, death.",
+        requires_drugs=["diazepam", "valium", "lorazepam", "ativan", "alprazolam", "xanax",
+                        "clonazepam", "klonopin", "temazepam", "nitrazepam", "oxazepam",
+                        "midazolam", "chlordiazepoxide", "clobazam", "benzodiazepine"],
     ),
     STOPPEntry(
         names=["methylphenidate", "ritalin", "modafinil", "provigil",
@@ -874,6 +882,12 @@ START_DATABASE: list[STARTEntry] = [
         indication="Active, moderate-to-severe depressive illness",
         rationale="Significant improvement in depression; reduces risk of suicide.",
         examples=["sertraline", "mirtazapine", "escitalopram", "venlafaxine"],
+        suppressed_by=["fluoxetine", "prozac", "sertraline", "zoloft", "paroxetine", "paxil",
+                       "citalopram", "celexa", "escitalopram", "lexapro", "fluvoxamine", "luvox",
+                       "venlafaxine", "effexor", "duloxetine", "cymbalta", "desvenlafaxine",
+                       "mirtazapine", "amitriptyline", "nortriptyline", "imipramine",
+                       "clomipramine", "doxepin", "bupropion", "wellbutrin", "trazodone",
+                       "agomelatine", "reboxetine", "antidepressant"],
     ),
     STARTEntry(
         drug_class="SNRI or SSRI for neuropathic pain",
@@ -881,6 +895,9 @@ START_DATABASE: list[STARTEntry] = [
         indication="Persistent neuropathic pain unresponsive to simple analgesia",
         rationale="Effective for diabetic neuropathy and other neuropathic pain syndromes.",
         examples=["duloxetine", "venlafaxine", "amitriptyline (low dose)"],
+        suppressed_by=["fluoxetine", "prozac", "sertraline", "zoloft", "paroxetine", "paxil",
+                       "citalopram", "celexa", "escitalopram", "lexapro", "fluvoxamine",
+                       "venlafaxine", "effexor", "duloxetine", "cymbalta", "desvenlafaxine"],
     ),
     STARTEntry(
         drug_class="Gabapentinoid for neuropathic pain",
@@ -1176,10 +1193,24 @@ def lookup_stopp(name: str) -> list[STOPPEntry]:
 
 
 def check_drugs_stopp(drug_names: list) -> dict:
+    drug_set = {d.strip().lower() for d in drug_names}
     results = []
     for name in drug_names:
+        trigger = name.strip().lower()
         hits = lookup_stopp(name)
-        results.append({"input": name, "flagged": bool(hits), "entries": hits})
+        filtered = []
+        for entry in hits:
+            if entry.requires_drugs:
+                req = [r.lower() for r in entry.requires_drugs]
+                # A co-drug must be present that is different from the triggering drug
+                has_co = any(
+                    any(r in d or d in r for r in req) and d != trigger
+                    for d in drug_set
+                )
+                if not has_co:
+                    continue
+            filtered.append(entry)
+        results.append({"input": name, "flagged": bool(filtered), "entries": filtered})
     return {"results": results, "total": len(drug_names),
             "flagged": sum(1 for r in results if r["flagged"])}
 
@@ -1204,13 +1235,21 @@ def print_stopp_report(data: dict):
     print("=" * 70)
 
 
-def get_start_suggestions(conditions: list) -> list[STARTEntry]:
-    """Return START suggestions for given condition keywords."""
+def get_start_suggestions(conditions: list, current_drugs: list = None) -> list[STARTEntry]:
+    """Return START suggestions for given conditions, suppressed where drug class already prescribed."""
+    current_drugs = current_drugs or []
+    drug_set = {d.strip().lower() for d in current_drugs}
+
     hits = []
     seen = set()
     for entry in START_DATABASE:
         if id(entry) in seen:
             continue
+        # Suppress if any suppressed_by drug is already in the current drug list
+        if entry.suppressed_by:
+            supp = [s.lower() for s in entry.suppressed_by]
+            if any(any(s in d or d in s for s in supp) for d in drug_set):
+                continue
         for cond in conditions:
             key = cond.strip().lower()
             if key in entry.indication.lower() or key in entry.rationale.lower():
