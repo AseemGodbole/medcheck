@@ -389,10 +389,10 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
 
     acb_result         = calculate_acb(resolved_drug_names)
     beers_result       = check_beers(resolved_drug_names)
-    stopp_result       = check_drugs_stopp(resolved_drug_names)
+    stopp_result       = check_drugs_stopp(resolved_drug_names, conditions)
     interaction_result = check_interactions(resolved_drug_names)
     dup_result         = check_duplicates(resolved_drug_names)
-    cumulative_risks   = check_all_cumulative_risks(resolved_drug_names)
+    cumulative_risks   = check_all_cumulative_risks(resolved_drug_names, conditions)
     start_hits         = get_start_suggestions(conditions, resolved_drug_names) if conditions else []
 
     # --- ACB ---
@@ -406,11 +406,25 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
         "not_found": acb_result["not_found"],
     }
 
-    # --- Beers ---
+    # --- Beers (filter condition-specific entries by patient conditions) ---
+    provided_conditions_lower = [c.lower() for c in conditions]
     beers_data = {"results": []}
     for drug in beers_result["results"]:
         entries = []
         for entry in drug["entries"]:
+            # Table 3 entries are condition-specific — only include when patient has that condition
+            if entry.conditions:
+                entry_conds = [ec.lower() for ec in entry.conditions]
+                matched = False
+                for pc in provided_conditions_lower:
+                    for ec in entry_conds:
+                        if ec in pc or pc in ec or ec.split()[0] == pc.split()[0]:
+                            matched = True
+                            break
+                    if matched:
+                        break
+                if not matched:
+                    continue   # skip this condition-specific entry
             entries.append({
                 "table":               entry.table,
                 "category":            entry.category,
@@ -424,7 +438,7 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
             })
         beers_data["results"].append({
             "drug":    drug["input"],
-            "flagged": drug["flagged"],
+            "flagged": bool(entries),
             "entries": entries,
         })
 
@@ -505,6 +519,17 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
             "risk_level": cumulative_risks["cns_depression"]["risk_level"],
             "drugs":      cumulative_risks["cns_depression"]["drugs"],
         },
+        "qt": {
+            "risk_level": cumulative_risks["qt"]["risk_level"],
+            "drugs":      cumulative_risks["qt"]["drugs"],
+        },
+        "renal": {
+            "risk_level":    cumulative_risks["renal"]["risk_level"],
+            "triple_whammy": cumulative_risks["renal"]["triple_whammy"],
+            "ckd_context":   cumulative_risks["renal"]["ckd_context"],
+            "drugs":         cumulative_risks["renal"]["drugs"],
+        },
+        "triple_whammy": cumulative_risks["triple_whammy"],
     }
 
     # --- START ---
@@ -524,6 +549,28 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
 
     # --- Concerns: top-level clinical summary ---
     concerns = []
+
+    # Triple Whammy (highest priority renal concern)
+    tw = cumulative_data["triple_whammy"]
+    if tw["detected"]:
+        drug_names_tw = (tw["drugs"].get("ace_arb", [])[:1]
+                         + tw["drugs"].get("diuretic", [])[:1]
+                         + tw["drugs"].get("nsaid", [])[:1])
+        concerns.append({
+            "level": "danger",
+            "text":  f"Triple Whammy — Acute Kidney Injury risk: "
+                     f"{' + '.join(d.title() for d in drug_names_tw)} "
+                     f"(ACE/ARB + diuretic + NSAID combination)",
+        })
+    elif cumulative_data["renal"]["risk_level"] in ("VERY HIGH", "HIGH"):
+        renal = cumulative_data["renal"]
+        ckd_note = " in CKD patient" if renal["ckd_context"] else ""
+        concerns.append({
+            "level": "danger" if renal["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"Renal injury risk: {renal['risk_level']}{ckd_note}",
+        })
+
+    # Contraindicated interactions
     for finding in interactions_data["found"]:
         if finding["severity"] == "CONTRAINDICATED":
             effects = "; ".join(r["effect"][:100] for r in finding["reasons"][:2])
@@ -531,21 +578,37 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
                 "level": "danger",
                 "text":  f"{finding['drug_a'].title()} + {finding['drug_b'].title()}: {effects}",
             })
+
+    # Serotonin syndrome
     sero = cumulative_data["serotonin"]
     if sero["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE-HIGH"):
-        lvl = "danger" if "VERY HIGH" in sero["risk_level"] else "warning"
+        lvl = "danger" if sero["risk_level"] == "VERY HIGH" else "warning"
         drugs_txt = ", ".join(d["drug"].title() for d in sero["drugs"][:3])
         concerns.append({"level": lvl,
                          "text": f"Serotonin syndrome risk: {sero['risk_level']} ({drugs_txt})"})
+
+    # QT prolongation cluster
+    qt = cumulative_data["qt"]
+    if qt["risk_level"] in ("VERY HIGH", "HIGH"):
+        lvl = "danger" if qt["risk_level"] == "VERY HIGH" else "warning"
+        qt_drugs_txt = ", ".join(d["drug"].title() for d in qt["drugs"][:3])
+        concerns.append({"level": lvl,
+                         "text": f"QT prolongation / Torsades de Pointes risk: {qt['risk_level']} ({qt_drugs_txt})"})
+
+    # Bleeding
     bleed = cumulative_data["bleeding"]
     if bleed["risk_level"] not in ("LOW", ""):
         lvl = "danger" if "VERY HIGH" in bleed["risk_level"] else \
               "warning" if bleed["risk_level"] in ("HIGH", "MODERATE-HIGH") else "caution"
         concerns.append({"level": lvl,
                          "text": f"Bleeding risk: {bleed['risk_level']}"})
+
+    # ACB
     if acb_data["high_risk"]:
         concerns.append({"level": "warning",
                          "text": f"High anticholinergic burden (ACB score {acb_data['total_score']}, threshold >= 3)"})
+
+    # Beers Table 2 (always avoid)
     for r in beers_data["results"]:
         for e in r["entries"]:
             if e["table"] == "2":

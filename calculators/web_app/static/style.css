@@ -800,6 +800,13 @@ body {
 .rb-warning .rb-head { color: var(--warning-text); }
 .rb-caution .rb-head { color: var(--caution-text); }
 
+.rb-note {
+  font-size: 0.9rem;
+  color: var(--danger-text);
+  margin: 4px 0 6px;
+  line-height: 1.5;
+}
+
 .rb-drugs {
   padding-left: 18px;
   font-size: 0.93rem;

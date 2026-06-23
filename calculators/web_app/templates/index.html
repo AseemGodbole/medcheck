@@ -370,21 +370,25 @@ function renderInteractions(d) {
 
   const rows = d.found.map(i => {
     const is = interactionSev(i.severity);
-    const reasonsHtml = i.reasons.map((r, idx) => {
+    const reasons = Array.isArray(i.reasons) ? i.reasons : [];
+    const reasonsHtml = reasons.length ? reasons.map((r, idx) => {
       const rs = interactionSev(r.severity);
-      const extraSevBadge = (i.reasons.length > 1 && idx > 0)
+      const extraSevBadge = (reasons.length > 1 && idx > 0)
         ? `<span class="reason-sev-badge fe-sev-${rs}">${esc(r.severity)}</span>`
         : '';
+      const effect     = r.effect     || r.concern  || 'Clinical interaction — see mechanism';
+      const mechanism  = r.mechanism  || '';
+      const management = r.management || '';
       return `<div class="reason-block${idx > 0 ? ' reason-block-extra' : ''}">
         ${extraSevBadge}
-        <div class="fe-concern">${esc(r.effect)}</div>
-        <details class="fe-details">
+        <div class="fe-concern">${esc(effect)}</div>
+        ${(mechanism || management) ? `<details class="fe-details">
           <summary>Mechanism &amp; Management</summary>
-          <p><strong>Mechanism:</strong> ${esc(r.mechanism)}</p>
-          <p><strong>Management:</strong> ${esc(r.management)}</p>
-        </details>
+          ${mechanism  ? `<p><strong>Mechanism:</strong> ${esc(mechanism)}</p>` : ''}
+          ${management ? `<p><strong>Management:</strong> ${esc(management)}</p>` : ''}
+        </details>` : ''}
       </div>`;
-    }).join('');
+    }).join('') : `<div class="fe-concern muted">No additional detail available.</div>`;
     return `<div class="flag-entry fe-${is}">
       <div class="fe-head">
         <span class="fe-drug">${esc(cap(i.drug_a))} + ${esc(cap(i.drug_b))}</span>
@@ -441,12 +445,14 @@ function renderCumulative(d) {
     riskLevelSev(d.bleeding.risk_level),
     riskLevelSev(d.serotonin.risk_level),
     riskLevelSev(d.cns_depression.risk_level),
+    riskLevelSev(d.qt ? d.qt.risk_level : ''),
+    riskLevelSev(d.renal ? d.renal.risk_level : ''),
   ];
   const sev = maxSev(riskSevs);
 
   const riskBlock = (label, icon, risk) => {
+    if (!risk || !risk.drugs || !risk.drugs.length) return '';
     const rs = riskLevelSev(risk.risk_level);
-    if (!risk.drugs.length) return '';
     const drugs = risk.drugs.map(dr =>
       `<li><span class="dr-name">${esc(cap(dr.drug))}</span> <span class="muted">(${esc(dr.severity || '')})</span></li>`
     ).join('');
@@ -456,9 +462,42 @@ function renderCumulative(d) {
     </div>`;
   };
 
+  // Triple whammy special block
+  const twBlock = () => {
+    if (!d.triple_whammy || !d.triple_whammy.detected) return '';
+    const tw = d.triple_whammy;
+    const allDrugs = [
+      ...(tw.drugs.ace_arb  || []),
+      ...(tw.drugs.diuretic || []),
+      ...(tw.drugs.nsaid    || []),
+    ].map(x => cap(x)).join(' + ');
+    return `<div class="risk-block rb-danger">
+      <div class="rb-head">&#9888; Triple Whammy (AKI Risk) &mdash; <strong>VERY HIGH</strong></div>
+      <p class="rb-note">${esc(allDrugs)}: ACE/ARB + diuretic + NSAID combination severely reduces renal perfusion and filtration. Avoid in CKD. Monitor creatinine and electrolytes urgently if unavoidable.</p>
+    </div>`;
+  };
+
+  const renal = d.renal || {};
+  const renalBlock = () => {
+    if (renal.triple_whammy) return ''; // already shown above
+    if (!renal.drugs || !renal.drugs.length) return '';
+    const rs = riskLevelSev(renal.risk_level);
+    const ckdNote = renal.ckd_context ? ' (CKD patient)' : '';
+    const drugs = renal.drugs.map(dr =>
+      `<li><span class="dr-name">${esc(cap(dr.drug))}</span> <span class="muted">${esc(dr.mechanism || '')}</span></li>`
+    ).join('');
+    return `<div class="risk-block rb-${rs}">
+      <div class="rb-head">&#128167; Renal Injury Risk${esc(ckdNote)} &mdash; <strong>${esc(renal.risk_level)}</strong></div>
+      <ul class="rb-drugs">${drugs}</ul>
+    </div>`;
+  };
+
   const body = [
+    twBlock(),
+    renalBlock(),
     riskBlock('Bleeding Risk',          '&#129656;', d.bleeding),
     riskBlock('Serotonin Syndrome Risk','&#9889;',   d.serotonin),
+    riskBlock('QT Prolongation Risk',   '&#9764;',   d.qt),
     riskBlock('CNS Depression Risk',    '&#129488;', d.cns_depression),
   ].join('') || `<p class="clear-msg">&#10003; No significant cumulative risk identified.</p>`;
 

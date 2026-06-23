@@ -247,30 +247,39 @@ def check_cumulative_bleeding_risk(drug_names: list[str]) -> dict:
 def check_cumulative_serotonin_risk(drug_names: list[str]) -> dict:
     """Assess cumulative serotonin syndrome risk."""
     drugs_normalized = [normalize(d) for d in drug_names]
-    
+
     serotonin_drugs = []
-    
+
     for drug in drugs_normalized:
         for risk_drug, severity in SEROTONIN_SYNDROME_DRUGS.items():
             if drug == risk_drug or drug in risk_drug or risk_drug in drug:
                 serotonin_drugs.append({"drug": drug, "severity": severity})
                 break
-    
-    if len(serotonin_drugs) <= 1:
+
+    high_count = sum(1 for d in serotonin_drugs if d["severity"] == "high")
+    n = len(serotonin_drugs)
+
+    if n <= 1:
         risk = "LOW"
         urgency = "Minimal"
-    elif len(serotonin_drugs) == 2:
-        risk = "MODERATE"
-        urgency = "Medium"
-    else:
+    elif high_count >= 3:
+        risk = "VERY HIGH"
+        urgency = "Critical"
+    elif high_count >= 2:
         risk = "HIGH"
         urgency = "High"
-    
+    elif n >= 3:
+        risk = "HIGH"
+        urgency = "High"
+    else:
+        risk = "MODERATE"
+        urgency = "Medium"
+
     return {
         "risk_level": risk,
         "urgency": urgency,
         "drugs": serotonin_drugs,
-        "message": f"Serotonin syndrome risk from {len(serotonin_drugs)} medication(s): {risk}"
+        "message": f"Serotonin syndrome risk from {n} medication(s): {risk}"
     }
 
 
@@ -307,12 +316,160 @@ def check_cumulative_cns_depression(drug_names: list[str]) -> dict:
     }
 
 
-def check_all_cumulative_risks(drug_names: list[str]) -> dict:
+# ── Drug class sets for multi-drug cluster detection ──────────────────────────
+
+_ACE_ARB = {
+    "lisinopril", "zestril", "ramipril", "altace", "enalapril", "vasotec",
+    "perindopril", "captopril", "trandolapril", "quinapril", "fosinopril", "benazepril",
+    "losartan", "cozaar", "valsartan", "diovan", "irbesartan", "avapro",
+    "candesartan", "olmesartan", "telmisartan", "eprosartan", "azilsartan",
+    "ace inhibitor", "ace-i", "arb", "angiotensin",
+}
+
+_DIURETIC = {
+    "furosemide", "frusemide", "lasix", "bumetanide", "torasemide",
+    "hydrochlorothiazide", "hctz", "bendroflumethiazide", "chlortalidone", "indapamide",
+    "spironolactone", "aldactone", "amiloride", "triamterene", "eplerenone",
+    "loop diuretic", "thiazide", "diuretic",
+}
+
+_NSAID = {
+    "ibuprofen", "advil", "motrin", "naproxen", "aleve", "naprosyn",
+    "diclofenac", "voltaren", "indomethacin", "indocin", "celecoxib", "celebrex",
+    "meloxicam", "mobic", "etoricoxib", "ketorolac", "toradol", "piroxicam", "sulindac",
+    "nsaid",
+}
+
+_QT_HIGH = {"amiodarone", "cordarone", "methadone", "ziprasidone", "geodon"}
+_QT_MODERATE = {
+    "azithromycin", "zithromax", "clarithromycin", "biaxin", "erythromycin",
+    "haloperidol", "haldol", "quetiapine", "seroquel", "domperidone", "motilium",
+    "metoclopramide", "reglan", "citalopram", "celexa", "fluconazole", "diflucan",
+}
+
+
+def _drug_in_class(drug_name: str, class_set: set) -> bool:
+    """Check if a normalized drug name belongs to a drug class set."""
+    for cls in class_set:
+        if drug_name == cls or drug_name in cls or cls in drug_name:
+            return True
+    return False
+
+
+def check_triple_whammy(drug_names: list[str]) -> dict:
+    """
+    Detect the 'Triple Whammy' combination: ACE/ARB + diuretic + NSAID.
+    This combination acutely reduces renal perfusion and can precipitate AKI.
+    """
+    drugs_normalized = [normalize(d) for d in drug_names]
+    found_ace_arb  = [d for d in drugs_normalized if _drug_in_class(d, _ACE_ARB)]
+    found_diuretic = [d for d in drugs_normalized if _drug_in_class(d, _DIURETIC)]
+    found_nsaid    = [d for d in drugs_normalized if _drug_in_class(d, _NSAID)]
+
+    if found_ace_arb and found_diuretic and found_nsaid:
+        return {
+            "detected": True,
+            "risk_level": "VERY HIGH",
+            "drugs": {
+                "ace_arb":   found_ace_arb,
+                "diuretic":  found_diuretic,
+                "nsaid":     found_nsaid,
+            },
+            "message": (
+                "Triple Whammy: ACE/ARB + diuretic + NSAID combination detected. "
+                "Significantly increases risk of acute kidney injury (AKI) through "
+                "combined haemodynamic effects on glomerular filtration."
+            ),
+        }
+    return {"detected": False, "risk_level": "LOW", "drugs": {}, "message": ""}
+
+
+def check_qt_prolongation_risk(drug_names: list[str]) -> dict:
+    """Assess QT prolongation and Torsades de Pointes risk from drug combination."""
+    drugs_normalized = [normalize(d) for d in drug_names]
+    qt_drugs = []
+    high_count = 0
+
+    for drug in drugs_normalized:
+        if any(drug == d or drug in d or d in drug for d in _QT_HIGH):
+            qt_drugs.append({"drug": drug, "severity": "high"})
+            high_count += 1
+        elif any(drug == d or drug in d or d in drug for d in _QT_MODERATE):
+            qt_drugs.append({"drug": drug, "severity": "moderate"})
+
+    n = len(qt_drugs)
+    if n == 0:
+        risk = "LOW"
+    elif high_count >= 2 or n >= 3:
+        risk = "VERY HIGH"
+    elif high_count == 1 or n == 2:
+        risk = "HIGH"
+    else:
+        risk = "MODERATE"
+
+    return {
+        "risk_level": risk,
+        "drugs": qt_drugs,
+        "message": f"QT prolongation risk from {n} medication(s): {risk}",
+    }
+
+
+def check_renal_risk(drug_names: list[str], patient_conditions: list[str] = None) -> dict:
+    """
+    Assess renal injury risk. Elevated in CKD patients or Triple Whammy combinations.
+    """
+    drugs_normalized  = [normalize(d) for d in drug_names]
+    conditions_lower  = [c.strip().lower() for c in (patient_conditions or [])]
+    has_ckd = any(
+        any(kw in c for kw in ("ckd", "chronic kidney", "renal failure", "renal disease",
+                               "kidney disease", "kidney failure", "egfr", "nephropathy"))
+        for c in conditions_lower
+    )
+    triple_whammy = check_triple_whammy(drug_names)
+
+    renal_drugs = []
+    for drug in drugs_normalized:
+        if _drug_in_class(drug, _NSAID):
+            sev = "high" if has_ckd else "moderate"
+            renal_drugs.append({
+                "drug": drug,
+                "severity": sev,
+                "mechanism": "Inhibits prostaglandin-mediated afferent arteriolar dilation; reduces GFR",
+            })
+        elif _drug_in_class(drug, _ACE_ARB) and has_ckd:
+            renal_drugs.append({
+                "drug": drug,
+                "severity": "moderate",
+                "mechanism": "Reduces efferent arteriolar tone; monitor potassium and creatinine in CKD",
+            })
+
+    if triple_whammy["detected"]:
+        risk = "VERY HIGH"
+    elif has_ckd and any(d["severity"] == "high" for d in renal_drugs):
+        risk = "HIGH"
+    elif renal_drugs:
+        risk = "MODERATE"
+    else:
+        risk = "LOW"
+
+    return {
+        "risk_level": risk,
+        "triple_whammy": triple_whammy["detected"],
+        "ckd_context": has_ckd,
+        "drugs": renal_drugs,
+        "message": f"Renal injury risk: {risk}",
+    }
+
+
+def check_all_cumulative_risks(drug_names: list[str], patient_conditions: list[str] = None) -> dict:
     """Run all cumulative risk checks."""
     return {
-        "bleeding": check_cumulative_bleeding_risk(drug_names),
-        "serotonin": check_cumulative_serotonin_risk(drug_names),
-        "cns_depression": check_cumulative_cns_depression(drug_names),
+        "bleeding":      check_cumulative_bleeding_risk(drug_names),
+        "serotonin":     check_cumulative_serotonin_risk(drug_names),
+        "cns_depression":check_cumulative_cns_depression(drug_names),
+        "qt":            check_qt_prolongation_risk(drug_names),
+        "renal":         check_renal_risk(drug_names, patient_conditions),
+        "triple_whammy": check_triple_whammy(drug_names),
     }
 
 

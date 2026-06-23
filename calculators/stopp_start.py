@@ -20,7 +20,8 @@ class STOPPEntry:
     condition: str       # when does this apply?
     rationale: str       # why stop
     brand_examples: list = field(default_factory=list)
-    requires_drugs: list = field(default_factory=list)  # co-prescriptions that must be present
+    requires_drugs: list = field(default_factory=list)        # co-medications that MUST be present
+    requires_conditions: list = field(default_factory=list)   # patient conditions that must be present
 
 @dataclass
 class STARTEntry:
@@ -94,6 +95,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="B  Cardiovascular", criterion_id="B4",
         condition="Dependent ankle oedema without clinical, biochemical or radiological evidence of heart failure, liver failure, nephrotic syndrome or renal failure",
         rationale="Leg elevation or compression stockings are safer; loop diuretics cause electrolyte imbalance and dehydration.",
+        requires_conditions=["ankle oedema", "oedema", "peripheral oedema", "leg swelling"],
     ),
     STOPPEntry(
         names=["thiazide diuretics", "bendroflumethiazide", "hydrochlorothiazide", "hctz",
@@ -101,6 +103,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="B  Cardiovascular", criterion_id="B5",
         condition="History of gout",
         rationale="Thiazides can exacerbate gout; safer antihypertensives available.",
+        requires_conditions=["gout", "hyperuricaemia", "hyperuricemia"],
     ),
     STOPPEntry(
         names=["beta-blockers", "atenolol", "tenormin", "metoprolol", "lopressor", "toprol",
@@ -130,6 +133,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="B  Cardiovascular", criterion_id="B9",
         condition="Orthostatic hypotension or frequent falls",
         rationale="Alpha-1 blockers worsen orthostatic hypotension and increase falls risk.",
+        requires_conditions=["orthostatic hypotension", "falls", "history of falls", "fall risk", "syncope"],
     ),
     STOPPEntry(
         names=["aspirin", "clopidogrel", "plavix", "prasugrel", "effient",
@@ -278,6 +282,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="D  CNS/Psychotropics", criterion_id="D4",
         condition="Parkinsonism (not as antipsychotic for psychosis in Parkinson's disease)",
         rationale="Dopamine antagonists worsen parkinsonian symptoms.",
+        requires_conditions=["parkinson", "parkinsonism"],
     ),
     STOPPEntry(
         names=["antipsychotics", "haloperidol", "haldol", "olanzapine", "zyprexa",
@@ -286,6 +291,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="D  CNS/Psychotropics", criterion_id="D5",
         condition="Behavioural and psychological symptoms of dementia  unless non-pharmacological options have failed",
         rationale="Risk of stroke, cognitive decline, mortality. Non-pharmacological approaches preferred.",
+        requires_conditions=["dementia", "alzheimer", "cognitive impairment", "delirium"],
     ),
     STOPPEntry(
         names=["antipsychotics", "phenothiazines", "haloperidol", "haldol",
@@ -294,6 +300,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="D  CNS/Psychotropics", criterion_id="D6",
         condition="History of falls or current high falls risk",
         rationale="Increased risk of falls due to sedation, orthostatic hypotension, EPS.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["antipsychotics"],
@@ -308,6 +315,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="D  CNS/Psychotropics", criterion_id="D8",
         condition="Current or recent (within 3 months) significant hyponatraemia (Na < 130 mmol/L)",
         rationale="SSRIs cause SIADH; hyponatraemia risk especially in frail older adults.",
+        requires_conditions=["hyponatraemia", "hyponatremia", "low sodium", "siadh"],
     ),
     STOPPEntry(
         names=["anticonvulsants", "phenytoin", "dilantin", "phenobarbitone", "phenobarbital",
@@ -340,6 +348,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="D  CNS/Psychotropics", criterion_id="D12",
         condition="History of falls or current fall risk",
         rationale="Sedation, postural instability; increased falls and fractures.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
 
     #  Section E: Renal 
@@ -429,6 +438,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="F  Gastrointestinal", criterion_id="F2",
         condition="Parkinson's disease or Parkinsonism",
         rationale="Dopamine antagonists worsen Parkinson's disease symptoms.",
+        requires_conditions=["parkinson", "parkinsonism"],
     ),
     STOPPEntry(
         names=["anticholinergics", "hyoscine butylbromide", "buscopan", "dicyclomine",
@@ -490,6 +500,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="G  Respiratory", criterion_id="G3",
         condition="Concurrent closed angle glaucoma",
         rationale="Risk of exacerbating glaucoma.",
+        requires_conditions=["glaucoma"],
     ),
     STOPPEntry(
         names=["sedating antihistamines", "promethazine", "phenergan",
@@ -498,6 +509,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="G  Respiratory", criterion_id="G4",
         condition="COPD or asthma",
         rationale="Risk of bronchospasm, increased secretion viscosity, respiratory depression.",
+        requires_conditions=["copd", "asthma", "chronic obstructive pulmonary"],
     ),
 
     #  Section H: Musculoskeletal 
@@ -514,6 +526,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="H  Musculoskeletal", criterion_id="H2",
         condition="As long-term (> 3 months) monotherapy for rheumatoid arthritis",
         rationale="Disease-modifying drugs are preferred; systemic corticosteroids cause significant long-term adverse effects.",
+        requires_conditions=["rheumatoid arthritis"],
     ),
     STOPPEntry(
         names=["nsaids", "cox-2 inhibitors", "celecoxib", "celebrex", "etoricoxib",
@@ -521,6 +534,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="H  Musculoskeletal", criterion_id="H3",
         condition="Peptic ulcer disease or upper GI bleeding  without concurrent PPI",
         rationale="Risk of serious GI bleeding recurrence.",
+        requires_conditions=["peptic ulcer", "upper gi bleeding", "gi bleeding", "gastric ulcer", "duodenal ulcer"],
     ),
     STOPPEntry(
         names=["bisphosphonates", "alendronate", "fosamax", "risedronate",
@@ -550,6 +564,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="I  Urogenital", criterion_id="I1",
         condition="Dementia or cognitive impairment",
         rationale="Risk of increased cognitive impairment and worsening delirium.",
+        requires_conditions=["dementia", "alzheimer", "cognitive impairment", "delirium"],
     ),
     STOPPEntry(
         names=["bladder antimuscarinics", "oxybutynin", "ditropan", "tolterodine",
@@ -557,6 +572,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="I  Urogenital", criterion_id="I2",
         condition="Chronic constipation",
         rationale="Anticholinergics worsen constipation.",
+        requires_conditions=["constipation", "chronic constipation"],
     ),
     STOPPEntry(
         names=["bladder antimuscarinics", "oxybutynin", "tolterodine", "solifenacin",
@@ -564,6 +580,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="I  Urogenital", criterion_id="I3",
         condition="Closed angle glaucoma",
         rationale="May precipitate acute glaucoma.",
+        requires_conditions=["glaucoma"],
     ),
     STOPPEntry(
         names=["alpha-1 blockers", "tamsulosin", "flomax", "alfuzosin", "uroxatral",
@@ -571,6 +588,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="I  Urogenital", criterion_id="I4",
         condition="Orthostatic hypotension or syncope",
         rationale="Alpha-1 blockers worsen orthostatic hypotension.",
+        requires_conditions=["orthostatic hypotension", "syncope", "falls", "postural hypotension"],
     ),
     STOPPEntry(
         names=["5-alpha reductase inhibitors", "finasteride", "proscar",
@@ -578,6 +596,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="I  Urogenital", criterion_id="I5",
         condition="History of orthostatic hypotension",
         rationale="Can cause orthostatic hypotension, especially on initiation.",
+        requires_conditions=["orthostatic hypotension", "syncope", "postural hypotension"],
     ),
 
     #  Section J: Endocrine 
@@ -594,6 +613,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="J  Endocrine", criterion_id="J2",
         condition="Heart failure (any degree)",
         rationale="Promote fluid retention and worsen heart failure.",
+        requires_conditions=["heart failure", "cardiac failure", "hf", "hfref", "hfpef"],
     ),
     STOPPEntry(
         names=["beta-blockers", "propranolol", "atenolol", "tenormin",
@@ -601,6 +621,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="J  Endocrine", criterion_id="J3",
         condition="Diabetes with frequent hypoglycaemia",
         rationale="Masks most symptoms of hypoglycaemia (except sweating); dangerous in older adults.",
+        requires_conditions=["diabetes", "hypoglycaemia", "hypoglycemia"],
     ),
     STOPPEntry(
         names=["estrogen", "systemic estrogen", "conjugated estrogens",
@@ -608,6 +629,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="J  Endocrine", criterion_id="J4",
         condition="History of breast cancer or venous thromboembolism",
         rationale="Increased risk of breast cancer recurrence and VTE.",
+        requires_conditions=["breast cancer", "venous thromboembolism", "vte", "dvt", "pulmonary embolism"],
     ),
     STOPPEntry(
         names=["thyroid replacement", "levothyroxine", "synthroid", "thyroxine",
@@ -632,6 +654,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K1",
         condition="Patient with history of falls or current high falls risk",
         rationale="Sedation, balance impairment, cognitive effects; significantly increased falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["z-drugs", "zolpidem", "ambien", "eszopiclone", "lunesta",
@@ -639,6 +662,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K2",
         condition="Patient with history of falls or current high falls risk",
         rationale="Sedation; falls risk comparable to benzodiazepines.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["antiepileptics", "carbamazepine", "tegretol", "gabapentin",
@@ -648,6 +672,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K3",
         condition="Patient with history of falls or current high falls risk",
         rationale="Ataxia, sedation, dizziness causing falls.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["opioids", "morphine", "oxycodone", "fentanyl", "tramadol",
@@ -655,6 +680,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K4",
         condition="Patient with history of falls or current high falls risk",
         rationale="Sedation, postural instability, increased falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["antidepressants", "ssri", "snri", "tricyclic antidepressants",
@@ -664,6 +690,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K5",
         condition="Patient with history of falls or current high falls risk",
         rationale="Orthostatic hypotension, sedation, falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["antihypertensives", "alpha-1 blockers", "doxazosin", "prazosin",
@@ -672,6 +699,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K6",
         condition="Patient with orthostatic hypotension",
         rationale="Worsen orthostatic hypotension and increase falls risk.",
+        requires_conditions=["orthostatic hypotension", "postural hypotension", "falls", "syncope"],
     ),
     STOPPEntry(
         names=["antipsychotics", "haloperidol", "olanzapine", "risperidone",
@@ -679,6 +707,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K7",
         condition="Patient with history of falls or current high falls risk",
         rationale="Sedation, EPS, orthostatic hypotension increasing falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["muscle relaxants", "cyclobenzaprine", "flexeril", "baclofen",
@@ -687,6 +716,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K8",
         condition="Patient with history of falls or current high falls risk",
         rationale="Sedation, muscle weakness, increased falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["antihistamines first generation", "diphenhydramine", "benadryl",
@@ -695,6 +725,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K9",
         condition="Patient with history of falls or current high falls risk",
         rationale="Sedation, anticholinergic effects increasing falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["carbidopa-levodopa", "levodopa", "sinemet", "madopar",
@@ -703,6 +734,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K10",
         condition="Patient with orthostatic hypotension",
         rationale="Worsen orthostatic hypotension increasing falls risk.",
+        requires_conditions=["orthostatic hypotension", "postural hypotension", "syncope", "falls"],
     ),
     STOPPEntry(
         names=["anticholinergic drugs (high burden)", "oxybutynin", "ditropan",
@@ -710,6 +742,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="K  Falls Risk", criterion_id="K11",
         condition="Patient with history of falls or current high falls risk",
         rationale="Anticholinergic burden increases falls risk.",
+        requires_conditions=["falls", "history of falls", "fall risk", "falls risk"],
     ),
     STOPPEntry(
         names=["cholinesterase inhibitors", "donepezil", "aricept",
@@ -745,6 +778,7 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="L  Analgesics", criterion_id="L4",
         condition="Epilepsy or concurrent seizure risk medications",
         rationale="Tramadol lowers seizure threshold.",
+        requires_conditions=["epilepsy", "seizure", "convulsion"],
     ),
     STOPPEntry(
         names=["gabapentin", "neurontin", "pregabalin", "lyrica"],
@@ -758,6 +792,9 @@ STOPP_DATABASE: list[STOPPEntry] = [
         section="L  Analgesics", criterion_id="L6",
         condition="Concurrent oral anticoagulant therapy",
         rationale="Increased risk of serious GI bleeding.",
+        requires_drugs=["warfarin", "coumadin", "apixaban", "eliquis", "rivaroxaban", "xarelto",
+                        "dabigatran", "pradaxa", "edoxaban", "savaysa", "heparin", "enoxaparin",
+                        "lovenox", "anticoagulant", "doac"],
     ),
 ]
 
@@ -1192,22 +1229,32 @@ def lookup_stopp(name: str) -> list[STOPPEntry]:
     return matches
 
 
-def check_drugs_stopp(drug_names: list) -> dict:
+def check_drugs_stopp(drug_names: list, patient_conditions: list = None) -> dict:
     drug_set = {d.strip().lower() for d in drug_names}
+    condition_set = {c.strip().lower() for c in (patient_conditions or [])}
     results = []
     for name in drug_names:
         trigger = name.strip().lower()
         hits = lookup_stopp(name)
         filtered = []
         for entry in hits:
+            # Gate on required co-medications
             if entry.requires_drugs:
                 req = [r.lower() for r in entry.requires_drugs]
-                # A co-drug must be present that is different from the triggering drug
                 has_co = any(
                     any(r in d or d in r for r in req) and d != trigger
                     for d in drug_set
                 )
                 if not has_co:
+                    continue
+            # Gate on required patient conditions
+            if entry.requires_conditions:
+                req_conds = [c.lower() for c in entry.requires_conditions]
+                has_cond = any(
+                    any(rc in pc or pc in rc for rc in req_conds)
+                    for pc in condition_set
+                ) if condition_set else False
+                if not has_cond:
                     continue
             filtered.append(entry)
         results.append({"input": name, "flagged": bool(filtered), "entries": filtered})
