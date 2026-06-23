@@ -499,6 +499,74 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
             counts[sev] += 1
     interactions_data["counts"] = counts
 
+    # --- Interaction clusters (synthesised from cumulative risk engine) ---
+    clusters = []
+
+    _tw = cumulative_risks["triple_whammy"]
+    if _tw["detected"]:
+        _tw_drugs = (_tw["drugs"].get("ace_arb", []) +
+                     _tw["drugs"].get("diuretic", []) +
+                     _tw["drugs"].get("nsaid", []))
+        clusters.append({
+            "type": "triple_whammy",
+            "title": "Acute Kidney Injury Risk — Triple Whammy",
+            "severity": "danger",
+            "risk_level": "VERY HIGH",
+            "drugs": _tw_drugs,
+            "description": "ACE/ARB + diuretic + NSAID combination severely reduces renal perfusion.",
+            "risks": ["Acute Kidney Injury", "Electrolyte imbalance", "Fluid retention"],
+        })
+
+    _sero = cumulative_risks["serotonin"]
+    if _sero["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE"):
+        clusters.append({
+            "type": "serotonin",
+            "title": "Serotonin Syndrome Risk",
+            "severity": "danger" if _sero["risk_level"] == "VERY HIGH" else "warning",
+            "risk_level": _sero["risk_level"],
+            "drugs": [d["drug"] for d in _sero["drugs"]],
+            "description": "Multiple serotonergic agents — combined risk of serotonin toxicity.",
+            "risks": ["Serotonin syndrome", "Agitation", "Hyperthermia", "Seizures"],
+        })
+
+    _cns = cumulative_risks["cns_depression"]
+    if _cns["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE"):
+        clusters.append({
+            "type": "cns_depression",
+            "title": "CNS Depression / Sedative Burden",
+            "severity": "danger" if _cns["risk_level"] == "VERY HIGH" else "warning",
+            "risk_level": _cns["risk_level"],
+            "drugs": [d["drug"] for d in _cns["drugs"]],
+            "description": "Multiple CNS-depressing agents — additive sedation and CNS toxicity.",
+            "risks": ["Falls", "Delirium", "Cognitive impairment", "Respiratory depression"],
+        })
+
+    _qt = cumulative_risks["qt"]
+    if _qt["risk_level"] in ("VERY HIGH", "HIGH"):
+        clusters.append({
+            "type": "qt",
+            "title": "QT Prolongation / Torsades de Pointes Risk",
+            "severity": "danger" if _qt["risk_level"] == "VERY HIGH" else "warning",
+            "risk_level": _qt["risk_level"],
+            "drugs": [d["drug"] for d in _qt["drugs"]],
+            "description": "Multiple QT-prolonging agents — combined risk of torsades de pointes.",
+            "risks": ["QT prolongation", "Torsades de Pointes", "Cardiac arrest"],
+        })
+
+    _bleed = cumulative_risks["bleeding"]
+    if _bleed["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE-HIGH"):
+        clusters.append({
+            "type": "bleeding",
+            "title": "Major Bleeding Risk",
+            "severity": "danger" if _bleed["risk_level"] == "VERY HIGH" else "warning",
+            "risk_level": _bleed["risk_level"],
+            "drugs": [d["drug"] for d in _bleed["drugs"]],
+            "description": "Multiple agents increasing bleeding risk through different mechanisms.",
+            "risks": ["Major haemorrhage", "GI bleeding", "Intracranial bleeding"],
+        })
+
+    interactions_data["clusters"] = clusters
+
     # --- Duplicates ---
     dup_data = {
         "found": dup_result["duplicates"],
@@ -530,6 +598,11 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
             "drugs":         cumulative_risks["renal"]["drugs"],
         },
         "triple_whammy": cumulative_risks["triple_whammy"],
+        "falls": {
+            "risk_level": cumulative_risks["falls"]["risk_level"],
+            "drugs":      cumulative_risks["falls"]["drugs"],
+        },
+        "overlaps": cumulative_risks.get("overlaps", []),
     }
 
     # --- START ---
@@ -547,10 +620,12 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
         ]
     }
 
-    # --- Concerns: top-level clinical summary ---
+    # --- Concerns: clinical theme synthesis (not raw rule outputs) ---
+    # Priority: Triple Whammy > Serotonin > Sedative Burden > QT >
+    #           Contraindicated interactions > Renal > Bleeding > ACB > Falls > Anticholinergic overlap
     concerns = []
 
-    # Triple Whammy (highest priority renal concern)
+    # 1. Triple Whammy
     tw = cumulative_data["triple_whammy"]
     if tw["detected"]:
         drug_names_tw = (tw["drugs"].get("ace_arb", [])[:1]
@@ -558,62 +633,99 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
                          + tw["drugs"].get("nsaid", [])[:1])
         concerns.append({
             "level": "danger",
-            "text":  f"Triple Whammy — Acute Kidney Injury risk: "
+            "text":  f"Triple Whammy — Acute Kidney Injury Risk: "
                      f"{' + '.join(d.title() for d in drug_names_tw)} "
-                     f"(ACE/ARB + diuretic + NSAID combination)",
-        })
-    elif cumulative_data["renal"]["risk_level"] in ("VERY HIGH", "HIGH"):
-        renal = cumulative_data["renal"]
-        ckd_note = " in CKD patient" if renal["ckd_context"] else ""
-        concerns.append({
-            "level": "danger" if renal["risk_level"] == "VERY HIGH" else "warning",
-            "text":  f"Renal injury risk: {renal['risk_level']}{ckd_note}",
+                     f"(ACE/ARB + diuretic + NSAID)",
         })
 
-    # Contraindicated interactions
+    # 2. Serotonin syndrome (VERY HIGH or HIGH only)
+    sero = cumulative_data["serotonin"]
+    if sero["risk_level"] in ("VERY HIGH", "HIGH"):
+        drug_txt = ", ".join(d["drug"].title() for d in sero["drugs"][:4])
+        concerns.append({
+            "level": "danger" if sero["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"Serotonin Syndrome Risk — {sero['risk_level']}: {drug_txt}",
+        })
+
+    # 3. CNS sedative burden (VERY HIGH or HIGH only)
+    cns = cumulative_data["cns_depression"]
+    if cns["risk_level"] in ("VERY HIGH", "HIGH"):
+        n = len(cns["drugs"])
+        drug_txt = ", ".join(d["drug"].title() for d in cns["drugs"][:4])
+        concerns.append({
+            "level": "danger" if cns["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"High Sedative Burden — {cns['risk_level']}: {n} CNS-depressing agents "
+                     f"({drug_txt}). Risks: falls, delirium, respiratory depression",
+        })
+
+    # 4. QT prolongation (VERY HIGH or HIGH only)
+    qt = cumulative_data.get("qt", {})
+    if qt.get("risk_level") in ("VERY HIGH", "HIGH"):
+        drug_txt = ", ".join(d["drug"].title() for d in qt.get("drugs", [])[:4])
+        concerns.append({
+            "level": "danger" if qt["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"QT Prolongation / Torsades Risk — {qt['risk_level']}: {drug_txt}",
+        })
+
+    # 5. Contraindicated interactions
     for finding in interactions_data["found"]:
         if finding["severity"] == "CONTRAINDICATED":
-            effects = "; ".join(r["effect"][:100] for r in finding["reasons"][:2])
+            effect_txt = (finding["reasons"][0]["effect"][:90]
+                          if finding["reasons"] else "see interaction details")
             concerns.append({
                 "level": "danger",
-                "text":  f"{finding['drug_a'].title()} + {finding['drug_b'].title()}: {effects}",
+                "text":  f"Contraindicated: {finding['drug_a'].title()} + "
+                         f"{finding['drug_b'].title()} — {effect_txt}",
             })
 
-    # Serotonin syndrome
-    sero = cumulative_data["serotonin"]
-    if sero["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE-HIGH"):
-        lvl = "danger" if sero["risk_level"] == "VERY HIGH" else "warning"
-        drugs_txt = ", ".join(d["drug"].title() for d in sero["drugs"][:3])
-        concerns.append({"level": lvl,
-                         "text": f"Serotonin syndrome risk: {sero['risk_level']} ({drugs_txt})"})
+    # 6. Renal risk (only when not already covered by triple whammy)
+    if not tw["detected"] and cumulative_data["renal"]["risk_level"] in ("VERY HIGH", "HIGH"):
+        renal = cumulative_data["renal"]
+        ckd_note = " (CKD patient)" if renal["ckd_context"] else ""
+        concerns.append({
+            "level": "danger" if renal["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"Renal Injury Risk — {renal['risk_level']}{ckd_note}",
+        })
 
-    # QT prolongation cluster
-    qt = cumulative_data["qt"]
-    if qt["risk_level"] in ("VERY HIGH", "HIGH"):
-        lvl = "danger" if qt["risk_level"] == "VERY HIGH" else "warning"
-        qt_drugs_txt = ", ".join(d["drug"].title() for d in qt["drugs"][:3])
-        concerns.append({"level": lvl,
-                         "text": f"QT prolongation / Torsades de Pointes risk: {qt['risk_level']} ({qt_drugs_txt})"})
-
-    # Bleeding
+    # 7. Bleeding risk (VERY HIGH or HIGH only)
     bleed = cumulative_data["bleeding"]
-    if bleed["risk_level"] not in ("LOW", ""):
-        lvl = "danger" if "VERY HIGH" in bleed["risk_level"] else \
-              "warning" if bleed["risk_level"] in ("HIGH", "MODERATE-HIGH") else "caution"
-        concerns.append({"level": lvl,
-                         "text": f"Bleeding risk: {bleed['risk_level']}"})
+    if bleed["risk_level"] in ("VERY HIGH", "HIGH", "MODERATE-HIGH"):
+        n = len(bleed["drugs"])
+        drug_txt = ", ".join(d["drug"].title() for d in bleed["drugs"][:3])
+        concerns.append({
+            "level": "danger" if bleed["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"Bleeding Risk — {bleed['risk_level']}: {n} agents ({drug_txt})",
+        })
 
-    # ACB
+    # 8. Falls risk (VERY HIGH or HIGH only)
+    falls = cumulative_data.get("falls", {})
+    if falls.get("risk_level") in ("VERY HIGH", "HIGH"):
+        n = len(falls.get("drugs", []))
+        drug_txt = ", ".join(d["drug"].title() for d in falls.get("drugs", [])[:4])
+        concerns.append({
+            "level": "danger" if falls["risk_level"] == "VERY HIGH" else "warning",
+            "text":  f"Falls Risk — {falls['risk_level']}: {n} fall-risk agents ({drug_txt})",
+        })
+
+    # 9. High anticholinergic burden (ACB score)
     if acb_data["high_risk"]:
-        concerns.append({"level": "warning",
-                         "text": f"High anticholinergic burden (ACB score {acb_data['total_score']}, threshold >= 3)"})
+        drug_txt = ", ".join(d["name"].title() for d in acb_data["drugs"] if d["score"] > 0)
+        concerns.append({
+            "level": "warning",
+            "text":  f"High Anticholinergic Burden — ACB score {acb_data['total_score']} (>= 3): {drug_txt}",
+        })
 
-    # Beers Table 2 (always avoid)
-    for r in beers_data["results"]:
-        for e in r["entries"]:
-            if e["table"] == "2":
-                concerns.append({"level": "danger",
-                                 "text": f"{r['drug'].title()} — Beers Table 2 (Always Avoid): {e['recommendation']}"})
+    # 10. Anticholinergic overlap (if ACB not already flagged)
+    if not acb_data["high_risk"]:
+        for overlap in cumulative_data.get("overlaps", []):
+            if (overlap["overlap_type"] == "anticholinergic_overlap"
+                    and overlap["risk_level"] in ("HIGH", "VERY HIGH")):
+                drug_txt = ", ".join(d["drug"].title() for d in overlap["drugs"][:4])
+                concerns.append({
+                    "level": "warning",
+                    "text":  f"Anticholinergic Medication Overlap — {overlap['risk_level']}: {drug_txt}",
+                })
+                break
 
     return {
         "drugs_checked":    resolved_drug_names,

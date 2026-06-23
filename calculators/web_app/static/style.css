@@ -817,6 +817,30 @@ body {
 .rb-drugs li { margin-bottom: 3px; }
 .dr-name { font-weight: 700; color: var(--navy-mid); }
 
+/* ── Section sub-headers (pairwise / clusters / overlap) ────────── */
+.sg-sub {
+  background: #f0f5f9;
+  color: #4a6b80;
+  border-color: #c3d4e0;
+}
+
+.sg-cluster {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+
+/* ── Cluster / overlap risk list ────────────────────────────────── */
+.rb-risks {
+  font-size: 0.87rem;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.rb-danger  .rb-risks { color: var(--danger-text); }
+.rb-warning .rb-risks { color: var(--warning-text); }
+.rb-caution .rb-risks { color: var(--caution-text); }
+
 .count-line {
   padding: 10px 22px 8px;
   font-size: 0.85rem;

@@ -153,28 +153,46 @@ FALL_RISK_DRUGS = {
     "lorazepam": "high",
     "alprazolam": "high",
     "clonazepam": "high",
-    
-    # Opioids - MODERATE/HIGH
+    "temazepam": "high",
+    "nitrazepam": "high",
+    "oxazepam": "high",
+
+    # Z-drugs - HIGH
+    "zolpidem": "high",
+    "zaleplon": "high",
+    "eszopiclone": "high",
+    "zopiclone": "high",
+
+    # Opioids - HIGH
     "morphine": "high",
     "oxycodone": "high",
     "fentanyl": "high",
-    
+    "hydromorphone": "high",
+    "codeine": "moderate",
+    "tramadol": "moderate",
+
+    # Gabapentinoids - MODERATE
+    "gabapentin": "moderate",
+    "pregabalin": "moderate",
+
     # Sedating antihistamines - MODERATE
     "diphenhydramine": "moderate",
     "hydroxyzine": "moderate",
-    
+
     # Antipsychotics - MODERATE
     "haloperidol": "moderate",
     "quetiapine": "moderate",
-    
+    "olanzapine": "moderate",
+
     # Anticholinergics - MODERATE
     "benztropine": "moderate",
     "trihexyphenidyl": "moderate",
-    
+
     # Sedating antidepressants - MODERATE
     "amitriptyline": "moderate",
     "mirtazapine": "moderate",
-    
+    "nortriptyline": "moderate",
+
     # Alpha-blockers - MODERATE (orthostatic hypotension)
     "doxazosin": "moderate",
     "terazosin": "moderate",
@@ -345,6 +363,80 @@ _QT_MODERATE = {
     "azithromycin", "zithromax", "clarithromycin", "biaxin", "erythromycin",
     "haloperidol", "haldol", "quetiapine", "seroquel", "domperidone", "motilium",
     "metoclopramide", "reglan", "citalopram", "celexa", "fluconazole", "diflucan",
+    "ondansetron", "zofran",
+}
+
+# ── Drug class membership for therapeutic overlap detection ───────────────────
+
+SEDATING_CLASSES = {
+    "Benzodiazepine": {
+        "diazepam", "lorazepam", "alprazolam", "clonazepam", "temazepam",
+        "midazolam", "triazolam", "nitrazepam", "oxazepam", "chlordiazepoxide",
+    },
+    "Z-drug": {
+        "zolpidem", "zaleplon", "eszopiclone", "zopiclone",
+    },
+    "Sedating antihistamine": {
+        "diphenhydramine", "doxylamine", "hydroxyzine", "promethazine", "chlorphenamine",
+    },
+    "Opioid": {
+        "morphine", "oxycodone", "fentanyl", "hydromorphone", "codeine",
+        "tramadol", "methadone", "hydrocodone", "buprenorphine", "pethidine",
+    },
+    "Sedating antipsychotic": {
+        "quetiapine", "olanzapine", "haloperidol", "chlorpromazine", "clozapine", "risperidone",
+    },
+    "Sedating antidepressant": {
+        "amitriptyline", "nortriptyline", "doxepin", "trimipramine", "mirtazapine",
+    },
+    "Gabapentinoid": {
+        "gabapentin", "pregabalin",
+    },
+    "Muscle relaxant": {
+        "baclofen", "cyclobenzaprine", "carisoprodol", "methocarbamol",
+    },
+}
+
+ANTICHOLINERGIC_CLASSES = {
+    "Bladder anticholinergic": {
+        "oxybutynin", "tolterodine", "solifenacin", "darifenacin", "trospium", "fesoterodine",
+    },
+    "Sedating antihistamine": {
+        "diphenhydramine", "doxylamine", "hydroxyzine", "promethazine", "chlorphenamine",
+    },
+    "Antidepressant": {
+        "amitriptyline", "nortriptyline", "doxepin", "trimipramine", "paroxetine",
+    },
+    "Antipsychotic": {
+        "clozapine", "olanzapine", "chlorpromazine",
+    },
+    "Antispasmodic": {
+        "dicyclomine", "hyoscine", "scopolamine",
+    },
+    "Antiparkinsonian": {
+        "benztropine", "trihexyphenidyl", "procyclidine",
+    },
+}
+
+SEROTONERGIC_CLASSES = {
+    "SSRI": {
+        "fluoxetine", "sertraline", "paroxetine", "citalopram", "escitalopram", "fluvoxamine",
+    },
+    "SNRI": {
+        "venlafaxine", "duloxetine", "desvenlafaxine", "milnacipran",
+    },
+    "Opioid (serotonergic)": {
+        "tramadol", "meperidine", "pethidine",
+    },
+    "MAOI": {
+        "phenelzine", "tranylcypromine", "isocarboxazid", "moclobemide",
+    },
+    "TCA": {
+        "amitriptyline", "nortriptyline", "imipramine", "clomipramine",
+    },
+    "Other serotonergic": {
+        "trazodone", "buspirone", "lithium", "linezolid", "dextromethorphan",
+    },
 }
 
 
@@ -461,6 +553,150 @@ def check_renal_risk(drug_names: list[str], patient_conditions: list[str] = None
     }
 
 
+def _drug_in_set(drug: str, drug_set: set) -> bool:
+    """Check if a drug name matches any member of a set (substring match)."""
+    for member in drug_set:
+        if drug == member or drug in member or member in drug:
+            return True
+    return False
+
+
+def check_fall_risk(drug_names: list[str]) -> dict:
+    """Assess cumulative falls risk from drug combination."""
+    drugs_normalized = [normalize(d) for d in drug_names]
+    fall_drugs = []
+    high_count = 0
+
+    for drug in drugs_normalized:
+        for risk_drug, severity in FALL_RISK_DRUGS.items():
+            if drug == risk_drug or drug in risk_drug or risk_drug in drug:
+                fall_drugs.append({"drug": drug, "severity": severity})
+                if severity == "high":
+                    high_count += 1
+                break
+
+    n = len(fall_drugs)
+    if n <= 1:
+        risk = "LOW"
+    elif high_count >= 2:
+        risk = "VERY HIGH"
+    elif n >= 3:
+        risk = "HIGH"
+    elif n == 2:
+        risk = "MODERATE"
+    else:
+        risk = "LOW"
+
+    return {
+        "risk_level": risk,
+        "drugs": fall_drugs,
+        "message": f"Falls risk from {n} medication(s): {risk}",
+    }
+
+
+def check_therapeutic_overlaps(drug_names: list[str]) -> list:
+    """
+    Detect pharmacological overlaps across drug classes (different classes, shared effect).
+    Only flags when drugs come from 2+ distinct drug classes with the same pharmacological property.
+    """
+    drugs_normalized = [normalize(d) for d in drug_names]
+    overlaps = []
+
+    # Sedating burden — drugs from 2+ different sedating drug classes
+    sedating_hits = {}
+    for drug in drugs_normalized:
+        for cls_label, members in SEDATING_CLASSES.items():
+            if _drug_in_set(drug, members):
+                sedating_hits[drug] = cls_label
+                break
+    unique_sed_classes = set(sedating_hits.values())
+    if len(unique_sed_classes) >= 2 and len(sedating_hits) >= 2:
+        n = len(sedating_hits)
+        risk = "VERY HIGH" if n >= 4 else ("HIGH" if n >= 3 else "MODERATE")
+        overlaps.append({
+            "overlap_type": "sedating_burden",
+            "label": "Sedating Medication Burden",
+            "risk_level": risk,
+            "drugs": [{"drug": d, "class": sedating_hits[d]} for d in sedating_hits],
+            "drug_count": n,
+            "risks": ["Falls", "Delirium", "Cognitive impairment", "Respiratory depression"],
+            "description": (
+                f"{n} CNS-depressing medications from {len(unique_sed_classes)} different drug classes. "
+                "Combined sedative effect is additive."
+            ),
+        })
+
+    # Anticholinergic overlap — 2+ drugs from different anticholinergic classes
+    ach_hits = {}
+    for drug in drugs_normalized:
+        for cls_label, members in ANTICHOLINERGIC_CLASSES.items():
+            if _drug_in_set(drug, members):
+                ach_hits[drug] = cls_label
+                break
+    unique_ach_classes = set(ach_hits.values())
+    if len(unique_ach_classes) >= 2:
+        n = len(ach_hits)
+        risk = "HIGH" if n >= 3 else "MODERATE"
+        overlaps.append({
+            "overlap_type": "anticholinergic_overlap",
+            "label": "Anticholinergic Medication Overlap",
+            "risk_level": risk,
+            "drugs": [{"drug": d, "class": ach_hits[d]} for d in ach_hits],
+            "drug_count": n,
+            "risks": ["Confusion", "Urinary retention", "Constipation", "Falls"],
+            "description": (
+                f"{n} medications with anticholinergic properties from "
+                f"{len(unique_ach_classes)} different drug classes."
+            ),
+        })
+
+    # Serotonergic overlap — 2+ drugs from different serotonergic classes
+    sero_hits = {}
+    for drug in drugs_normalized:
+        for cls_label, members in SEROTONERGIC_CLASSES.items():
+            if _drug_in_set(drug, members):
+                sero_hits[drug] = cls_label
+                break
+    unique_sero_classes = set(sero_hits.values())
+    if len(unique_sero_classes) >= 2 and len(sero_hits) >= 2:
+        n = len(sero_hits)
+        risk = "VERY HIGH" if n >= 3 else "HIGH"
+        overlaps.append({
+            "overlap_type": "serotonergic_overlap",
+            "label": "Serotonergic Medication Overlap",
+            "risk_level": risk,
+            "drugs": [{"drug": d, "class": sero_hits[d]} for d in sero_hits],
+            "drug_count": n,
+            "risks": ["Serotonin syndrome", "Agitation", "Hyperthermia", "Seizures"],
+            "description": (
+                f"{n} serotonergic agents from {len(unique_sero_classes)} different drug classes."
+            ),
+        })
+
+    # QT-prolonging overlap — 2+ QT drugs
+    qt_hits = {}
+    for drug in drugs_normalized:
+        if _drug_in_set(drug, _QT_HIGH):
+            qt_hits[drug] = "High-risk QT"
+        elif _drug_in_set(drug, _QT_MODERATE):
+            qt_hits[drug] = "Moderate-risk QT"
+    if len(qt_hits) >= 2:
+        n = len(qt_hits)
+        high_count = sum(1 for v in qt_hits.values() if v == "High-risk QT")
+        risk = "VERY HIGH" if (high_count >= 2 or n >= 3) else "HIGH"
+        overlaps.append({
+            "overlap_type": "qt_overlap",
+            "label": "QT-Prolonging Medication Overlap",
+            "risk_level": risk,
+            "drugs": [{"drug": d, "class": qt_hits[d]} for d in qt_hits],
+            "drug_count": n,
+            "risks": ["QT prolongation", "Torsades de Pointes", "Cardiac arrest"],
+            "description": f"{n} QT-prolonging medications detected — combined risk is additive.",
+        })
+
+    return overlaps
+
+
 def check_all_cumulative_risks(drug_names: list[str], patient_conditions: list[str] = None) -> dict:
     """Run all cumulative risk checks."""
     return {
@@ -470,6 +706,8 @@ def check_all_cumulative_risks(drug_names: list[str], patient_conditions: list[s
         "qt":            check_qt_prolongation_risk(drug_names),
         "renal":         check_renal_risk(drug_names, patient_conditions),
         "triple_whammy": check_triple_whammy(drug_names),
+        "falls":         check_fall_risk(drug_names),
+        "overlaps":      check_therapeutic_overlaps(drug_names),
     }
 
 

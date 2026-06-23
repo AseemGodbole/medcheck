@@ -359,99 +359,168 @@ function renderSTOPP(d) {
 }
 
 function renderInteractions(d) {
-  const sevs = d.found.map(i => interactionSev(i.severity));
-  const sev = maxSev(sevs.length ? sevs : ['ok']);
+  const pairSevs   = d.found.map(i => interactionSev(i.severity));
+  const clusterSevs = (d.clusters || []).map(c => c.severity || 'ok');
+  const allSevs = [...pairSevs, ...clusterSevs];
+  const sev = maxSev(allSevs.length ? allSevs : ['ok']);
 
-  if (!d.found.length) {
+  const hasPairs    = d.found.length > 0;
+  const hasClusters = d.clusters && d.clusters.length > 0;
+
+  if (!hasPairs && !hasClusters) {
     return makeCard('ok', '&#9889;', 'Drug Interactions',
-      'Clinically significant drug-drug combinations',
+      'Pairwise interactions and interaction clusters',
       `<p class="clear-msg">&#10003; No clinically significant interactions found among ${d.pairs_checked} pair(s) checked.</p>`);
   }
 
-  const rows = d.found.map(i => {
-    const is = interactionSev(i.severity);
-    const reasons = Array.isArray(i.reasons) ? i.reasons : [];
-    const reasonsHtml = reasons.length ? reasons.map((r, idx) => {
-      const rs = interactionSev(r.severity);
-      const extraSevBadge = (reasons.length > 1 && idx > 0)
-        ? `<span class="reason-sev-badge fe-sev-${rs}">${esc(r.severity)}</span>`
-        : '';
-      const effect     = r.effect     || r.concern  || 'Clinical interaction — see mechanism';
-      const mechanism  = r.mechanism  || '';
-      const management = r.management || '';
-      return `<div class="reason-block${idx > 0 ? ' reason-block-extra' : ''}">
-        ${extraSevBadge}
-        <div class="fe-concern">${esc(effect)}</div>
-        ${(mechanism || management) ? `<details class="fe-details">
-          <summary>Mechanism &amp; Management</summary>
-          ${mechanism  ? `<p><strong>Mechanism:</strong> ${esc(mechanism)}</p>` : ''}
-          ${management ? `<p><strong>Management:</strong> ${esc(management)}</p>` : ''}
-        </details>` : ''}
-      </div>`;
-    }).join('') : `<div class="fe-concern muted">No additional detail available.</div>`;
-    return `<div class="flag-entry fe-${is}">
-      <div class="fe-head">
-        <span class="fe-drug">${esc(cap(i.drug_a))} + ${esc(cap(i.drug_b))}</span>
-        <span class="fe-table fe-sev-${is}">${esc(i.severity)}</span>
-      </div>
-      ${reasonsHtml}
-    </div>`;
-  }).join('');
+  let body = '';
 
-  const counts = d.counts;
-  const pairCount = d.found.length;
-  const countLine = `${pairCount} unique drug pair${pairCount !== 1 ? 's' : ''} &nbsp;|&nbsp; `
-    + ['CONTRAINDICATED','SERIOUS','MONITOR','MINOR']
-        .filter(k => counts[k])
-        .map(k => `${k.charAt(0) + k.slice(1).toLowerCase()}: ${counts[k]}`)
-        .join(' &nbsp;|&nbsp; ');
+  // ── Pairwise interactions ──────────────────────────────────────────
+  if (hasPairs) {
+    if (hasClusters) {
+      body += `<div class="section-group-head sg-sub">Pairwise Interactions (${d.found.length})</div>`;
+    }
+    const counts = d.counts;
+    const pairCount = d.found.length;
+    const countLine = `${pairCount} unique drug pair${pairCount !== 1 ? 's' : ''} &nbsp;|&nbsp; `
+      + ['CONTRAINDICATED','SERIOUS','MONITOR','MINOR']
+          .filter(k => counts[k])
+          .map(k => `${k.charAt(0) + k.slice(1).toLowerCase()}: ${counts[k]}`)
+          .join(' &nbsp;|&nbsp; ');
+    body += `<p class="count-line">${countLine}</p>`;
+
+    body += d.found.map(i => {
+      const is = interactionSev(i.severity);
+      const reasons = Array.isArray(i.reasons) ? i.reasons : [];
+      const reasonsHtml = reasons.length ? reasons.map((r, idx) => {
+        const rs = interactionSev(r.severity);
+        const extraSevBadge = (reasons.length > 1 && idx > 0)
+          ? `<span class="reason-sev-badge fe-sev-${rs}">${esc(r.severity)}</span>`
+          : '';
+        const effect     = r.effect     || r.concern  || 'Clinical interaction — see mechanism';
+        const mechanism  = r.mechanism  || '';
+        const management = r.management || '';
+        return `<div class="reason-block${idx > 0 ? ' reason-block-extra' : ''}">
+          ${extraSevBadge}
+          <div class="fe-concern">${esc(effect)}</div>
+          ${(mechanism || management) ? `<details class="fe-details">
+            <summary>Mechanism &amp; Management</summary>
+            ${mechanism  ? `<p><strong>Mechanism:</strong> ${esc(mechanism)}</p>` : ''}
+            ${management ? `<p><strong>Management:</strong> ${esc(management)}</p>` : ''}
+          </details>` : ''}
+        </div>`;
+      }).join('') : `<div class="fe-concern muted">No additional detail available.</div>`;
+      return `<div class="flag-entry fe-${is}">
+        <div class="fe-head">
+          <span class="fe-drug">${esc(cap(i.drug_a))} + ${esc(cap(i.drug_b))}</span>
+          <span class="fe-table fe-sev-${is}">${esc(i.severity)}</span>
+        </div>
+        ${reasonsHtml}
+      </div>`;
+    }).join('');
+  }
+
+  // ── Interaction clusters ───────────────────────────────────────────
+  if (hasClusters) {
+    body += `<div class="section-group-head sg-cluster">Interaction Clusters (${d.clusters.length})</div>`;
+    body += d.clusters.map(c => {
+      const cs = c.severity === 'danger' ? 'danger' : (c.severity === 'warning' ? 'warning' : 'caution');
+      const drugs = (c.drugs || []).map(drug => `<li>${esc(cap(drug))}</li>`).join('');
+      const risks = (c.risks || []).join(', ');
+      return `<div class="risk-block rb-${cs}">
+        <div class="rb-head">${esc(c.title)} &mdash; <strong>${esc(c.risk_level)}</strong></div>
+        <p class="rb-note">${esc(c.description)}</p>
+        <ul class="rb-drugs">${drugs}</ul>
+        ${risks ? `<p class="rb-risks">Risks: ${esc(risks)}</p>` : ''}
+      </div>`;
+    }).join('');
+  }
 
   return makeCard(sev, '&#9889;', 'Drug Interactions',
-    'Clinically significant drug-drug combinations',
-    `<p class="count-line">${countLine}</p>${rows}`);
+    'Pairwise interactions and interaction clusters', body);
 }
 
-function renderDuplicates(d) {
-  const sev = d.count === 0 ? 'ok'
+function renderDuplicates(d, overlaps) {
+  overlaps = overlaps || [];
+  const hasOverlaps = overlaps.length > 0;
+
+  const overlapMaxSev = overlaps.reduce((best, o) => {
+    const s = o.risk_level === 'VERY HIGH' ? 'danger' : o.risk_level === 'HIGH' ? 'warning' : 'caution';
+    return maxSev([best, s]);
+  }, 'ok');
+
+  const dupSev = d.count === 0 ? 'ok'
     : d.found.some(f => f.risk_level === 'CONTRAINDICATED') ? 'danger'
     : d.found.some(f => f.risk_level === 'SERIOUS') ? 'warning'
     : 'caution';
 
-  if (d.count === 0) {
+  const sev = maxSev([dupSev, hasOverlaps ? overlapMaxSev : 'ok']);
+
+  if (d.count === 0 && !hasOverlaps) {
     return makeCard('ok', '&#128204;', 'Duplicate Therapies',
-      'Same drug class prescribed more than once',
-      `<p class="clear-msg">&#10003; No duplicate therapeutic classes detected.</p>`);
+      'Same drug class or overlapping pharmacology',
+      `<p class="clear-msg">&#10003; No duplicate therapeutic classes or significant pharmacological overlaps detected.</p>`);
   }
 
-  const rows = d.found.map(f => {
-    const is = f.risk_level === 'CONTRAINDICATED' ? 'danger'
-             : f.risk_level === 'SERIOUS' ? 'warning' : 'caution';
-    return `<div class="flag-entry fe-${is}">
-      <div class="fe-head">
-        <span class="fe-drug">${esc(f.class_name)}</span>
-        <span class="fe-table fe-sev-${is}">${esc(f.risk_level)}</span>
-      </div>
-      <div class="fe-concern">Drugs involved: ${esc(f.drugs.join(', '))}</div>
-      <div class="muted small">${esc(f.warning)}</div>
-    </div>`;
-  }).join('');
+  let body = '';
+
+  // ── Strict class duplicates ────────────────────────────────────────
+  if (d.count > 0) {
+    if (hasOverlaps) {
+      body += `<div class="section-group-head sg-sub">Strict Duplicate Classes (${d.count})</div>`;
+    }
+    body += d.found.map(f => {
+      const is = f.risk_level === 'CONTRAINDICATED' ? 'danger'
+               : f.risk_level === 'SERIOUS' ? 'warning' : 'caution';
+      return `<div class="flag-entry fe-${is}">
+        <div class="fe-head">
+          <span class="fe-drug">${esc(f.class_name)}</span>
+          <span class="fe-table fe-sev-${is}">${esc(f.risk_level)}</span>
+        </div>
+        <div class="fe-concern">Drugs involved: ${esc(f.drugs.join(', '))}</div>
+        <div class="muted small">${esc(f.warning)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Therapeutic overlaps ───────────────────────────────────────────
+  if (hasOverlaps) {
+    body += `<div class="section-group-head sg-cluster">Therapeutic Overlap (${overlaps.length})</div>`;
+    body += overlaps.map(o => {
+      const os = o.risk_level === 'VERY HIGH' ? 'danger'
+               : o.risk_level === 'HIGH' ? 'warning' : 'caution';
+      const drugs = (o.drugs || []).map(dr =>
+        `<li><span class="dr-name">${esc(cap(dr.drug))}</span> <span class="muted">(${esc(dr.class || '')})</span></li>`
+      ).join('');
+      const risks = (o.risks || []).join(', ');
+      return `<div class="risk-block rb-${os}">
+        <div class="rb-head">${esc(o.label)} &mdash; <strong>${esc(o.risk_level)}</strong></div>
+        <p class="rb-note">${esc(o.description)}</p>
+        <ul class="rb-drugs">${drugs}</ul>
+        ${risks ? `<p class="rb-risks">Risks: ${esc(risks)}</p>` : ''}
+      </div>`;
+    }).join('');
+  }
 
   return makeCard(sev, '&#128204;', 'Duplicate Therapies',
-    'Same drug class prescribed more than once', rows);
+    'Same drug class or overlapping pharmacology', body);
 }
 
 function renderCumulative(d) {
   const riskSevs = [
-    riskLevelSev(d.bleeding.risk_level),
-    riskLevelSev(d.serotonin.risk_level),
-    riskLevelSev(d.cns_depression.risk_level),
+    riskLevelSev(d.bleeding ? d.bleeding.risk_level : ''),
+    riskLevelSev(d.serotonin ? d.serotonin.risk_level : ''),
+    riskLevelSev(d.cns_depression ? d.cns_depression.risk_level : ''),
     riskLevelSev(d.qt ? d.qt.risk_level : ''),
     riskLevelSev(d.renal ? d.renal.risk_level : ''),
+    riskLevelSev(d.falls ? d.falls.risk_level : ''),
   ];
   const sev = maxSev(riskSevs);
 
+  // Suppress LOW risks — only show MODERATE and above
   const riskBlock = (label, icon, risk) => {
     if (!risk || !risk.drugs || !risk.drugs.length) return '';
+    if (!risk.risk_level || risk.risk_level === 'LOW') return '';
     const rs = riskLevelSev(risk.risk_level);
     const drugs = risk.drugs.map(dr =>
       `<li><span class="dr-name">${esc(cap(dr.drug))}</span> <span class="muted">(${esc(dr.severity || '')})</span></li>`
@@ -479,8 +548,9 @@ function renderCumulative(d) {
 
   const renal = d.renal || {};
   const renalBlock = () => {
-    if (renal.triple_whammy) return ''; // already shown above
+    if (renal.triple_whammy) return '';
     if (!renal.drugs || !renal.drugs.length) return '';
+    if (!renal.risk_level || renal.risk_level === 'LOW') return '';
     const rs = riskLevelSev(renal.risk_level);
     const ckdNote = renal.ckd_context ? ' (CKD patient)' : '';
     const drugs = renal.drugs.map(dr =>
@@ -495,6 +565,7 @@ function renderCumulative(d) {
   const body = [
     twBlock(),
     renalBlock(),
+    riskBlock('Falls Risk',             '&#128694;', d.falls),
     riskBlock('Bleeding Risk',          '&#129656;', d.bleeding),
     riskBlock('Serotonin Syndrome Risk','&#9889;',   d.serotonin),
     riskBlock('QT Prolongation Risk',   '&#9764;',   d.qt),
@@ -569,8 +640,18 @@ function buildSummary(d) {
     counters[s]++;
   });
 
-  [d.cumulative.bleeding, d.cumulative.serotonin, d.cumulative.cns_depression].forEach(r => {
+  if (d.cumulative.triple_whammy && d.cumulative.triple_whammy.detected) counters.danger++;
+
+  [d.cumulative.bleeding, d.cumulative.serotonin, d.cumulative.cns_depression,
+   d.cumulative.qt, d.cumulative.falls].forEach(r => {
+    if (!r || !r.risk_level || r.risk_level === 'LOW') return;
     const s = riskLevelSev(r.risk_level);
+    if (s in counters) counters[s]++;
+  });
+
+  (d.cumulative.overlaps || []).forEach(o => {
+    if (o.risk_level === 'LOW') return;
+    const s = riskLevelSev(o.risk_level);
     if (s in counters) counters[s]++;
   });
 
@@ -609,7 +690,7 @@ function renderResults(d) {
     renderBeers(d.beers),
     renderSTOPP(d.stopp),
     renderInteractions(d.interactions),
-    renderDuplicates(d.duplicates),
+    renderDuplicates(d.duplicates, d.cumulative.overlaps || []),
     renderCumulative(d.cumulative),
     renderSTART(d.start),
   ].join('');
