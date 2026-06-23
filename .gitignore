@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Large data files — too big for GitHub
+"India Medicines and Drug Info Dataset.csv"
+India\ Medicines\ and\ Drug\ Info\ Dataset.csv

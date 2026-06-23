@@ -378,7 +378,142 @@ def run_full_check(drug_names: list, conditions: list = None):
     print(BOLD(SEP) + "\n")
 
 
-#  CLI 
+def get_structured_results(drug_names: list, conditions: list = None) -> dict:
+    """
+    Run all checks and return structured JSON-serialisable data.
+    Used by the web API instead of run_full_check().
+    Shows ALL flags; the caller decides what to display.
+    """
+    conditions = conditions or []
+    resolved_drug_names, resolution_notes = resolve_drug_names(drug_names)
+
+    acb_result       = calculate_acb(resolved_drug_names)
+    beers_result     = check_beers(resolved_drug_names)
+    stopp_result     = check_drugs_stopp(resolved_drug_names)
+    interaction_result = check_interactions(resolved_drug_names)
+    dup_result       = check_duplicates(resolved_drug_names)
+    cumulative_risks = check_all_cumulative_risks(resolved_drug_names)
+    start_hits       = get_start_suggestions(conditions) if conditions else []
+
+    # --- ACB ---
+    acb_data = {
+        "total_score": acb_result["total_acb_score"],
+        "high_risk":   acb_result["high_risk"],
+        "drugs": [
+            {"name": d["input"], "score": d["score"], "score_label": d["score_label"]}
+            for d in acb_result["drugs"]
+        ],
+        "not_found": acb_result["not_found"],
+    }
+
+    # --- Beers: return ALL entries (condition-specific included) ---
+    beers_data = {"results": []}
+    for drug in beers_result["results"]:
+        entries = []
+        for entry in drug["entries"]:
+            entries.append({
+                "table":               entry.table,
+                "category":            entry.category,
+                "recommendation":      entry.recommendation,
+                "concern":             entry.concern,
+                "rationale":           entry.rationale,
+                "conditions":          entry.conditions,
+                "renal_threshold":     entry.renal_threshold,
+                "quality_of_evidence": entry.quality_of_evidence,
+                "strength":            entry.strength,
+            })
+        beers_data["results"].append({
+            "drug":    drug["input"],
+            "flagged": drug["flagged"],
+            "entries": entries,
+        })
+
+    # --- STOPP: return ALL entries ---
+    stopp_data = {"results": []}
+    for drug in stopp_result["results"]:
+        entries = []
+        for entry in drug["entries"]:
+            entries.append({
+                "criterion_id": entry.criterion_id,
+                "section":      entry.section,
+                "condition":    entry.condition,
+                "rationale":    entry.rationale,
+            })
+        stopp_data["results"].append({
+            "drug":    drug["input"],
+            "flagged": drug["flagged"],
+            "entries": entries,
+        })
+
+    # --- Interactions ---
+    interactions_data = {
+        "found": [],
+        "counts": interaction_result["counts"],
+        "pairs_checked": interaction_result["pairs_checked"],
+    }
+    for item in interaction_result["interactions_found"]:
+        iact = item["interaction"]
+        interactions_data["found"].append({
+            "drug_a":     item["drug_a"],
+            "drug_b":     item["drug_b"],
+            "severity":   iact.severity,
+            "mechanism":  iact.mechanism,
+            "effect":     iact.effect,
+            "management": iact.management,
+        })
+
+    # --- Duplicates ---
+    dup_data = {
+        "found": dup_result["duplicates"],
+        "count": dup_result["duplicates_found"],
+    }
+
+    # --- Cumulative ---
+    cumulative_data = {
+        "bleeding": {
+            "risk_level": cumulative_risks["bleeding"]["risk_level"],
+            "drugs":      cumulative_risks["bleeding"]["drugs"],
+        },
+        "serotonin": {
+            "risk_level": cumulative_risks["serotonin"]["risk_level"],
+            "drugs":      cumulative_risks["serotonin"]["drugs"],
+        },
+        "cns_depression": {
+            "risk_level": cumulative_risks["cns_depression"]["risk_level"],
+            "drugs":      cumulative_risks["cns_depression"]["drugs"],
+        },
+    }
+
+    # --- START ---
+    start_data = {
+        "suggestions": [
+            {
+                "criterion_id": e.criterion_id,
+                "section":      e.section,
+                "drug_class":   e.drug_class,
+                "indication":   e.indication,
+                "rationale":    e.rationale,
+                "examples":     e.examples,
+            }
+            for e in start_hits
+        ]
+    }
+
+    return {
+        "drugs_checked":     resolved_drug_names,
+        "conditions":        conditions,
+        "resolution_notes":  resolution_notes,
+        "acb":               acb_data,
+        "beers":             beers_data,
+        "stopp":             stopp_data,
+        "interactions":      interactions_data,
+        "duplicates":        dup_data,
+        "cumulative":        cumulative_data,
+        "start":             start_data,
+    }
+
+
+#  CLI
 
 def main():
     args = sys.argv[1:]

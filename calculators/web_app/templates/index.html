@@ -6,351 +6,561 @@
   <title>MedCheck — Medication Safety Checker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%231a5276'/%3E%3Ctext x='50' y='70' font-size='60' text-anchor='middle' fill='white' font-family='Georgia' font-weight='700'%3EM%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo-mark">
-        <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-          <circle cx="22" cy="22" r="22" fill="#1a5276"/>
-          <rect x="18" y="10" width="8" height="24" rx="4" fill="white"/>
-          <rect x="10" y="18" width="24" height="8" rx="4" fill="white"/>
-        </svg>
-        <span class="logo-text">MedCheck</span>
-      </div>
-      <p class="header-sub">Medication safety screening for adults 65+</p>
+<header class="header">
+  <div class="header-inner">
+    <div class="logo-mark">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#1a5276"/>
+        <rect x="17" y="9"  width="6" height="22" rx="3" fill="white"/>
+        <rect x="9"  y="17" width="22" height="6"  rx="3" fill="white"/>
+      </svg>
+      <span class="logo-text">MedCheck</span>
     </div>
-  </header>
+    <p class="header-tagline">Medication safety screening for adults 65+</p>
+  </div>
+</header>
 
-  <main class="main">
+<main class="main">
 
-    <!-- STEP 1: INPUT -->
-    <section class="section section-input">
-      <div class="step-label">
-        <span class="step-num">Step 1</span>
-        <span class="step-desc">Enter medications</span>
+  <!-- INPUT -->
+  <section class="section section-input">
+    <div class="input-card">
+
+      <div class="field-group">
+        <label class="field-label" for="drugs">
+          Medications <span class="required-badge">Required</span>
+        </label>
+        <textarea id="drugs" class="field-input" rows="3"
+          placeholder="Enter drug names separated by commas&#10;e.g. warfarin, metformin, lisinopril, omeprazole"
+          spellcheck="false"></textarea>
+        <p class="field-hint">Use generic (non-brand) drug names where possible.</p>
       </div>
 
-      <div class="input-card">
-        <div class="field-group">
-          <label class="field-label" for="drugs">
-            💊 Medications
-            <span class="required">Required</span>
-          </label>
-          <textarea
-            id="drugs"
-            class="field-input"
-            placeholder="Type each medicine separated by a comma&#10;Example: warfarin, metformin, lisinopril, omeprazole"
-            rows="4"
-            spellcheck="false"
-          ></textarea>
-          <p class="field-hint">You can use brand names or generic names — either works</p>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="conditions">
-            🩺 Health Conditions
-            <span class="optional">Optional</span>
-          </label>
-          <input
-            id="conditions"
-            type="text"
-            class="field-input"
-            placeholder="e.g. heart failure, diabetes, kidney disease, osteoporosis"
-          >
-          <p class="field-hint">Helps find condition-specific warnings</p>
-        </div>
-
-        <div class="btn-row">
-          <button id="runBtn" class="btn-check">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            Check Medications
-          </button>
-          <button id="clearBtn" class="btn-clear">Clear</button>
-        </div>
+      <div class="field-group">
+        <label class="field-label" for="conditions">
+          Health Conditions <span class="optional-badge">Optional but recommended</span>
+        </label>
+        <input id="conditions" type="text" class="field-input"
+          list="conditions-list"
+          placeholder="e.g. heart failure, diabetes, falls risk, Parkinson's disease">
+        <datalist id="conditions-list">
+          <option value="atrial fibrillation">
+          <option value="heart failure">
+          <option value="hypertension">
+          <option value="coronary artery disease">
+          <option value="diabetes type 2">
+          <option value="diabetes type 1">
+          <option value="chronic kidney disease">
+          <option value="osteoporosis">
+          <option value="Parkinson's disease">
+          <option value="dementia">
+          <option value="Alzheimer's disease">
+          <option value="gout">
+          <option value="COPD">
+          <option value="asthma">
+          <option value="falls risk">
+          <option value="history of falls">
+          <option value="osteoarthritis">
+          <option value="rheumatoid arthritis">
+          <option value="depression">
+          <option value="anxiety">
+          <option value="insomnia">
+          <option value="peptic ulcer disease">
+          <option value="GERD">
+          <option value="chronic constipation">
+          <option value="benign prostatic hyperplasia">
+          <option value="hypothyroidism">
+          <option value="epilepsy">
+          <option value="stroke">
+          <option value="syncope">
+          <option value="delirium">
+          <option value="peripheral vascular disease">
+          <option value="liver disease">
+          <option value="cancer">
+          <option value="anaemia">
+          <option value="glaucoma">
+          <option value="cognitive impairment">
+        </datalist>
+        <p class="field-hint">Separate multiple conditions with commas. Adding conditions reveals more targeted warnings.</p>
       </div>
-    </section>
 
-    <!-- ERROR -->
-    <div id="errorBanner" class="error-banner hidden">
-      <span class="error-icon">⚠</span>
-      <span id="errorText">Please enter at least one medication.</span>
+      <div class="btn-row">
+        <button id="runBtn" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          Check Medications
+        </button>
+        <button id="clearBtn" class="btn-secondary">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Error -->
+  <div id="errorBanner" class="alert alert-error hidden">
+    <span class="alert-icon">⚠</span>
+    <span id="errorText">Please enter at least one medication name.</span>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingState" class="loading-state hidden">
+    <div class="loading-ring"></div>
+    <p class="loading-text">Checking your medications…</p>
+  </div>
+
+  <!-- RESULTS -->
+  <section id="resultsSection" class="section section-results hidden">
+
+    <!-- Summary bar -->
+    <div id="summaryBar" class="summary-bar"></div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer-banner">
+      <strong>For information only.</strong> Always consult your doctor or pharmacist before changing any medications.
+      This tool applies geriatric screening criteria for adults aged 65 and over.
     </div>
 
-    <!-- LOADING -->
-    <div id="loadingState" class="loading-state hidden">
-      <div class="loading-ring"></div>
-      <p class="loading-text">Checking your medications…</p>
-    </div>
+    <!-- Result cards -->
+    <div id="resultCards"></div>
 
-    <!-- STEP 2: RESULTS -->
-    <section id="resultsSection" class="section section-results hidden">
-      <div class="step-label">
-        <span class="step-num">Step 2</span>
-        <span class="step-desc">Your results</span>
-      </div>
+    <!-- Sources -->
+    <p class="sources-line">
+      Sources: ACB Calculator (acbcalc.com) &middot; AGS Beers Criteria 2023 (J Am Geriatr Soc 71:2052) &middot; STOPP/START v3 2023 (Eur Geriatr Med 14:625) &middot; Medscape Drug Interactions
+    </p>
+  </section>
 
-      <!-- Brand Mapping Info -->
-      <div id="brandBanner" class="brand-banner hidden">
-        <div class="brand-icon">🏷️</div>
-        <div class="brand-body">
-          <p class="brand-title">Brand Names Resolved</p>
-          <ul id="brandList" class="brand-list"></ul>
-        </div>
-      </div>
+  <!-- Empty state -->
+  <div id="emptyState" class="empty-state">
+    <div class="empty-icon">&#128138;</div>
+    <p class="empty-title">Ready to check your medications</p>
+    <p class="empty-sub">Enter medicine names above, then press <strong>Check Medications</strong></p>
+  </div>
 
-      <!-- Critical Alert Banner -->
-      <div id="criticalBanner" class="critical-banner hidden">
-        <div class="critical-icon">!</div>
-        <div class="critical-body">
-          <p class="critical-title">Important Issues Found</p>
-          <ul id="criticalList" class="critical-list"></ul>
-          <p class="critical-sub">See the sections below for full details and what to do.</p>
-        </div>
-      </div>
+</main>
 
-      <!-- Result Cards -->
-      <div id="resultCards"></div>
-
-    </section>
-
-    <!-- EMPTY STATE -->
-    <div id="emptyState" class="empty-state">
-      <div class="empty-icon">💊</div>
-      <p class="empty-title">Ready to check your medications</p>
-      <p class="empty-sub">Enter your medicine names above and press <strong>Check Medications</strong></p>
-    </div>
-
-  </main>
-
-  <footer class="footer">
-    <div class="footer-inner">
-      <p class="footer-disclaimer">
-        <strong>For information only.</strong> Always talk to your doctor or pharmacist before changing any medications.
-      </p>
-      <p class="footer-sources">
-        Sources: ACB Calculator &nbsp;·&nbsp; AGS Beers Criteria 2023 &nbsp;·&nbsp; STOPP/START v3 2023 &nbsp;·&nbsp; Medscape Drug Interactions
-      </p>
-    </div>
-  </footer>
+<footer class="footer">
+  <p>MedCheck &mdash; Educational tool only. Not a substitute for clinical judgment.</p>
+</footer>
 
 <script>
-// ── DOM refs ────────────────────────────────────────────────────────────────
-const drugsEl       = document.getElementById('drugs');
-const conditionsEl  = document.getElementById('conditions');
-const runBtn        = document.getElementById('runBtn');
-const clearBtn      = document.getElementById('clearBtn');
-const errorBanner   = document.getElementById('errorBanner');
-const errorText     = document.getElementById('errorText');
-const loadingState  = document.getElementById('loadingState');
-const resultsSection= document.getElementById('resultsSection');
-const brandBanner   = document.getElementById('brandBanner');
-const brandList     = document.getElementById('brandList');
-const criticalBanner= document.getElementById('criticalBanner');
-const criticalList  = document.getElementById('criticalList');
-const resultCards   = document.getElementById('resultCards');
-const emptyState    = document.getElementById('emptyState');
+/* ── DOM ──────────────────────────────────────────────────────────────────── */
+const drugsEl        = document.getElementById('drugs');
+const conditionsEl   = document.getElementById('conditions');
+const runBtn         = document.getElementById('runBtn');
+const clearBtn       = document.getElementById('clearBtn');
+const errorBanner    = document.getElementById('errorBanner');
+const errorText      = document.getElementById('errorText');
+const loadingState   = document.getElementById('loadingState');
+const resultsSection = document.getElementById('resultsSection');
+const summaryBar     = document.getElementById('summaryBar');
+const resultCards    = document.getElementById('resultCards');
+const emptyState     = document.getElementById('emptyState');
 
-// Demo prefill
-drugsEl.value = 'amitriptyline, diazepam, omeprazole, lisinopril';
-conditionsEl.value = 'heart failure, diabetes';
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
-// ── Parse report text into named sections (tolerant to header format) ──────
-function parseReport(text) {
-  // Patterns accept either '--- N. Title ---' or plain 'N. Title' to be tolerant
-  const patterns = {
-    acb:          /(?:---\s*)?1\.[\s\S]*?(?=(?:---\s*2\.|\n2\.|SUMMARY|$))/s,
-    beers:        /(?:---\s*)?2\.[\s\S]*?(?=(?:---\s*3\.|\n3\.|SUMMARY|$))/s,
-    stopp:        /(?:---\s*)?3\.[\s\S]*?(?=(?:---\s*4\.|\n4\.|SUMMARY|$))/s,
-    start:        /(?:---\s*)?7\.[\s\S]*?(?=(?:---\s*8\.|\n8\.|SUMMARY|$))/s,
-    interactions: /(?:---\s*)?4\.[\s\S]*?(?=(?:---\s*5\.|\n5\.|SUMMARY|$))/s,
-    duplicates:   /(?:---\s*)?5\.[\s\S]*?(?=(?:---\s*6\.|\n6\.|SUMMARY|$))/s,
-    cumulative:   /(?:---\s*)?6\.[\s\S]*?(?=(?:---\s*7\.|\n7\.|SUMMARY|$))/s,
-    summary:      /SUMMARY[\s\S]*/s,
-  };
-  const out = {};
-  for (const [k, re] of Object.entries(patterns)) {
-    const m = text.match(re);
-    out[k] = m ? m[0].trim() : null;
-  }
-  return out;
+/* Severity levels and their visual metadata */
+const SEV = {
+  danger:  { label: 'Critical',   badge: 'badge-danger',  icon: '&#9888;' },
+  warning: { label: 'Warning',    badge: 'badge-warning', icon: '&#9888;' },
+  caution: { label: 'Monitor',    badge: 'badge-caution', icon: '&#9679;' },
+  ok:      { label: 'No issues',  badge: 'badge-ok',      icon: '&#10003;' },
+  info:    { label: 'Note',       badge: 'badge-info',    icon: '&#8594;' },
+};
+
+function sevBadge(sev) {
+  const m = SEV[sev] || SEV.ok;
+  return `<span class="sev-badge ${m.badge}">${m.icon} ${m.label}</span>`;
 }
 
-// ── Determine severity from content ────────────────────────────────────────
-function severity(text) {
-  if (!text) return 'ok';
-  if (/CONTRAINDICATED/.test(text)) return 'danger';
-  if (/VERY HIGH|HIGH RISK/.test(text))  return 'danger';
-  if (/SERIOUS|HIGH/.test(text))         return 'warning';
-  if (/MONITOR|CAUTION/.test(text))      return 'caution';
+/* Highest severity in a list of strings */
+function maxSev(list) {
+  if (list.includes('danger'))  return 'danger';
+  if (list.includes('warning')) return 'warning';
+  if (list.includes('caution')) return 'caution';
+  if (list.includes('info'))    return 'info';
   return 'ok';
 }
 
-// ── Severity metadata ───────────────────────────────────────────────────────
-const SEV_META = {
-  danger:  { label: 'Critical',   icon: '🚫', color: 'danger'  },
-  warning: { label: 'Warning',    icon: '⚠️',  color: 'warning' },
-  caution: { label: 'Monitor',    icon: '👁',  color: 'caution' },
-  ok:      { label: 'Clear',      icon: '✅',  color: 'ok'      },
-};
-
-// ── Section definitions ─────────────────────────────────────────────────────
-const SECTION_DEFS = [
-  { key: 'acb',          title: 'Anticholinergic Burden',         icon: '🧠', subtitle: 'Memory & brain-affecting drug burden score' },
-  { key: 'beers',        title: 'Beers Criteria 2023',            icon: '📋', subtitle: 'Drugs flagged as potentially harmful for adults 65+' },
-  { key: 'stopp',        title: 'STOPP v3 (Drugs to Stop)',      icon: '🛑', subtitle: 'Drugs to consider stopping' },
-  { key: 'start',        title: 'START v3 (Drugs to Start)',     icon: '💡', subtitle: 'Medications to consider starting' },
-  { key: 'interactions', title: 'Drug Interactions',              icon: '⚡', subtitle: 'Combinations that may cause problems together' },
-  { key: 'duplicates',   title: 'Duplicate Therapies',            icon: '📌', subtitle: 'Same type of drug prescribed more than once' },
-  { key: 'cumulative',   title: 'Overall Risk Assessment',        icon: '📊', subtitle: 'Combined risk score across all checks' },
-  { key: 'summary',      title: 'Summary',                        icon: '📝', subtitle: 'Quick overview of all findings' },
-];
-
-// ── Build result cards ──────────────────────────────────────────────────────
-function buildCards(sections) {
-  resultCards.innerHTML = '';
-
-  for (const def of SECTION_DEFS) {
-    const content = sections[def.key];
-    if (!content) continue;
-
-    const sev  = severity(content);
-    const meta = SEV_META[sev];
-
-    const card = document.createElement('div');
-    card.className = `result-card sev-${sev}`;
-
-    // Lines: strip leading/trailing blank lines, cap extreme length
-    const lines = content.split('\n').filter(l => l.trim());
-
-    card.innerHTML = `
-      <div class="rc-header">
-        <div class="rc-icon-wrap">${def.icon}</div>
-        <div class="rc-title-group">
-          <h2 class="rc-title">${def.title}</h2>
-          <p class="rc-subtitle">${def.subtitle}</p>
-        </div>
-        <div class="rc-badge sev-badge-${sev}">${meta.icon} ${meta.label}</div>
-        <button class="rc-toggle" aria-expanded="true" data-card="${def.key}">
-          <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-        </button>
-      </div>
-      <div class="rc-body" id="body-${def.key}">
-        <div class="rc-lines">${lines.map(l => renderLine(l)).join('')}</div>
-      </div>
-    `;
-
-    resultCards.appendChild(card);
-
-    // Toggle
-    card.querySelector('.rc-toggle').addEventListener('click', function() {
-      const expanded = this.getAttribute('aria-expanded') === 'true';
-      const body = document.getElementById('body-' + def.key);
-      body.style.display = expanded ? 'none' : 'block';
-      this.setAttribute('aria-expanded', !expanded);
-      this.querySelector('.chevron').style.transform = expanded ? 'rotate(180deg)' : 'rotate(0)';
-    });
-  }
+function interactionSev(sev) {
+  if (sev === 'CONTRAINDICATED') return 'danger';
+  if (sev === 'SERIOUS')         return 'warning';
+  if (sev === 'MONITOR')         return 'caution';
+  return 'ok';
 }
 
-// ── Render a single line with highlighting ──────────────────────────────────
-function renderLine(line) {
-  const t = line.trim();
-  if (!t) return '';
+function riskLevelSev(level) {
+  if (!level) return 'ok';
+  const l = level.toUpperCase();
+  if (l.includes('VERY HIGH'))     return 'danger';
+  if (l.includes('HIGH'))          return 'warning';
+  if (l.includes('MODERATE-HIGH')) return 'warning';
+  if (l.includes('MODERATE'))      return 'caution';
+  return 'ok';
+}
 
-  // Section headers (=== or ---)
-  if (/^[=─━]{3,}/.test(t)) return `<div class="rl-divider"></div>`;
+/* ── Card builder ─────────────────────────────────────────────────────────── */
+function makeCard(sev, icon, title, subtitle, bodyHtml, startOpen = true) {
+  const m = SEV[sev] || SEV.ok;
+  const uid = 'card-' + Math.random().toString(36).slice(2);
+  return `
+  <div class="result-card rc-${sev}">
+    <div class="rc-header" onclick="toggleCard('${uid}', this)">
+      <span class="rc-sec-icon">${icon}</span>
+      <div class="rc-titles">
+        <h2 class="rc-title">${esc(title)}</h2>
+        <p class="rc-subtitle">${esc(subtitle)}</p>
+      </div>
+      ${sevBadge(sev)}
+      <svg class="rc-chevron ${startOpen ? '' : 'rc-chevron-down'}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+    <div class="rc-body" id="${uid}" style="${startOpen ? '' : 'display:none'}">
+      ${bodyHtml}
+    </div>
+  </div>`;
+}
 
-  // Emoji-led items: flag them nicely
-  const iconMap = {
-    '🚫': 'rl-danger', '⛔': 'rl-danger', '❌': 'rl-danger',
-    '⚠':  'rl-warning','⚠️': 'rl-warning',
-    '💊': 'rl-drug',   '✅': 'rl-ok', '✓': 'rl-ok',
-    '🛑': 'rl-danger', '💡': 'rl-info', '📌': 'rl-info',
-    '👁': 'rl-caution',
+function toggleCard(uid, header) {
+  const body = document.getElementById(uid);
+  const chev = header.querySelector('.rc-chevron');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  chev.classList.toggle('rc-chevron-down', !hidden);
+}
+
+/* ── Section renderers ────────────────────────────────────────────────────── */
+
+function renderACB(d) {
+  const sev = d.high_risk ? 'danger' : (d.total_score > 0 ? 'warning' : 'ok');
+  const scoreLine = d.high_risk
+    ? `<div class="acb-score acb-high">Total ACB Score: ${d.total_score} &mdash; HIGH RISK (score &ge; 3)</div>
+       <p class="acb-note">A score of 3 or more is associated with increased risk of confusion, falls, and mortality in older adults. Consider switching to lower-burden alternatives.</p>`
+    : `<div class="acb-score acb-ok">Total ACB Score: ${d.total_score} &mdash; ${d.total_score === 0 ? 'No anticholinergic burden' : 'Below high-risk threshold'}</div>`;
+
+  const rows = d.drugs.map(drug => {
+    const drugSev = drug.score >= 3 ? 'danger' : (drug.score >= 1 ? 'warning' : 'ok');
+    const dot = drugSev === 'ok' ? 'dot-ok' : (drugSev === 'warning' ? 'dot-warn' : 'dot-danger');
+    return `<tr>
+      <td><span class="status-dot ${dot}"></span>${esc(cap(drug.name))}</td>
+      <td class="acb-num acb-${drugSev}">${drug.score}</td>
+      <td class="muted">${esc(drug.score_label)}</td>
+    </tr>`;
+  }).join('');
+
+  const notFound = d.not_found.length
+    ? `<p class="not-found-note">Not in ACB database (scored 0): ${esc(d.not_found.join(', '))}</p>`
+    : '';
+
+  const body = `
+    ${scoreLine}
+    <table class="data-table">
+      <thead><tr><th>Medication</th><th>ACB Score</th><th>Burden Level</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${notFound}
+    <p class="legend-line">Score guide: 0 = none &nbsp;|&nbsp; 1 = possible &nbsp;|&nbsp; 2 = definite (moderate) &nbsp;|&nbsp; 3 = definite (high) &nbsp;|&nbsp; &ge;3 total = high risk</p>`;
+
+  return makeCard(sev, '&#129504;', 'Anticholinergic Burden (ACB)', 'Cognitive and anticholinergic load from this drug combination', body);
+}
+
+function renderBeers(d) {
+  const allEntries = d.results.flatMap(r => r.entries.map(e => ({...e, drug: r.drug})));
+  const t2 = allEntries.filter(e => e.table === '2');
+  const t3 = allEntries.filter(e => e.table === '3');
+  const t4 = allEntries.filter(e => e.table === '4');
+  const t6 = allEntries.filter(e => e.table === '6');
+  const sev = t2.length ? 'danger' : (t3.length || t4.length || t6.length) ? 'warning' : 'ok';
+
+  if (sev === 'ok') {
+    return makeCard('ok', '&#128203;', 'Beers Criteria 2023',
+      'Potentially inappropriate medications for adults 65+',
+      `<p class="clear-msg">&#10003; No Beers Criteria flags found for the listed medications.</p>`);
+  }
+
+  function beersEntry(e, tableLabel, rowSev) {
+    const condBadge = (e.conditions && e.conditions.length)
+      ? `<span class="cond-badge">When: ${esc(e.conditions.join(', '))}</span>`
+      : `<span class="cond-badge cond-always">Always applies</span>`;
+    const renal = e.renal_threshold
+      ? `<div class="entry-renal">Renal threshold: ${esc(e.renal_threshold)}</div>`
+      : '';
+    return `<div class="flag-entry fe-${rowSev}">
+      <div class="fe-head">
+        <span class="fe-drug">${esc(cap(e.drug))}</span>
+        <span class="fe-table">${esc(tableLabel)}</span>
+        ${condBadge}
+      </div>
+      <div class="fe-rec">&#9888; ${esc(e.recommendation)}</div>
+      <div class="fe-concern">${esc(e.concern)}</div>
+      ${renal}
+      <details class="fe-details">
+        <summary>Rationale</summary>
+        <p>${esc(e.rationale)}</p>
+        <p class="muted">Evidence: ${esc(e.quality_of_evidence)} quality / ${esc(e.strength)} recommendation</p>
+      </details>
+    </div>`;
+  }
+
+  let body = '';
+  if (t2.length) {
+    body += `<div class="section-group-head sg-danger">Table 2 &mdash; Always Avoid (${t2.length})</div>`;
+    body += t2.map(e => beersEntry(e, 'Always Avoid', 'danger')).join('');
+  }
+  if (t3.length) {
+    body += `<div class="section-group-head sg-warning">Table 3 &mdash; Condition-Specific (${t3.length})</div>`;
+    body += t3.map(e => beersEntry(e, 'Condition-Specific', 'warning')).join('');
+  }
+  if (t4.length) {
+    body += `<div class="section-group-head sg-caution">Table 4 &mdash; Use With Caution (${t4.length})</div>`;
+    body += t4.map(e => beersEntry(e, 'Use With Caution', 'caution')).join('');
+  }
+  if (t6.length) {
+    body += `<div class="section-group-head sg-caution">Table 6 &mdash; Renal Dose Adjustment (${t6.length})</div>`;
+    body += t6.map(e => beersEntry(e, 'Renal Adjustment', 'caution')).join('');
+  }
+
+  return makeCard(sev, '&#128203;', 'Beers Criteria 2023',
+    'Potentially inappropriate medications for adults 65+', body);
+}
+
+function renderSTOPP(d) {
+  const allFlags = d.results.flatMap(r => r.entries.map(e => ({...e, drug: r.drug})));
+  const sev = allFlags.length ? 'warning' : 'ok';
+
+  if (sev === 'ok') {
+    return makeCard('ok', '&#128721;', 'STOPP v3 2023 — Drugs to Consider Stopping',
+      'Screening Tool of Older Persons\' Prescriptions',
+      `<p class="clear-msg">&#10003; No STOPP criteria flags found for the listed medications.</p>`);
+  }
+
+  const rows = allFlags.map(e => `
+    <div class="flag-entry fe-warning">
+      <div class="fe-head">
+        <span class="fe-drug">${esc(cap(e.drug))}</span>
+        <span class="fe-table">${esc(e.criterion_id)} &mdash; ${esc(e.section.split('—')[0].trim())}</span>
+      </div>
+      <div class="fe-rec">&#9888; Review: consider stopping</div>
+      <div class="fe-concern">Condition context: ${esc(e.condition)}</div>
+      <details class="fe-details">
+        <summary>Rationale</summary>
+        <p>${esc(e.rationale)}</p>
+      </details>
+    </div>`).join('');
+
+  return makeCard(sev, '&#128721;', 'STOPP v3 2023 — Drugs to Consider Stopping',
+    'Screening Tool of Older Persons\' Prescriptions', rows);
+}
+
+function renderInteractions(d) {
+  const sevs = d.found.map(i => interactionSev(i.severity));
+  const sev = maxSev(sevs.length ? sevs : ['ok']);
+
+  if (!d.found.length) {
+    return makeCard('ok', '&#9889;', 'Drug Interactions',
+      'Clinically significant drug-drug combinations',
+      `<p class="clear-msg">&#10003; No clinically significant interactions found among ${d.pairs_checked} pair(s) checked.</p>`);
+  }
+
+  const rows = d.found.map(i => {
+    const is = interactionSev(i.severity);
+    return `<div class="flag-entry fe-${is}">
+      <div class="fe-head">
+        <span class="fe-drug">${esc(cap(i.drug_a))} + ${esc(cap(i.drug_b))}</span>
+        <span class="fe-table fe-sev-${is}">${esc(i.severity)}</span>
+      </div>
+      <div class="fe-concern">${esc(i.effect)}</div>
+      <details class="fe-details">
+        <summary>Mechanism &amp; Management</summary>
+        <p><strong>Mechanism:</strong> ${esc(i.mechanism)}</p>
+        <p><strong>Management:</strong> ${esc(i.management)}</p>
+      </details>
+    </div>`;
+  }).join('');
+
+  const counts = d.counts;
+  const countLine = ['CONTRAINDICATED','SERIOUS','MONITOR','MINOR']
+    .filter(k => counts[k])
+    .map(k => `${k.toLowerCase()}: ${counts[k]}`)
+    .join(' &nbsp;|&nbsp; ');
+
+  return makeCard(sev, '&#9889;', 'Drug Interactions',
+    'Clinically significant drug-drug combinations',
+    `<p class="count-line">${countLine}</p>${rows}`);
+}
+
+function renderDuplicates(d) {
+  const sev = d.count === 0 ? 'ok'
+    : d.found.some(f => f.risk_level === 'CONTRAINDICATED') ? 'danger'
+    : d.found.some(f => f.risk_level === 'SERIOUS') ? 'warning'
+    : 'caution';
+
+  if (d.count === 0) {
+    return makeCard('ok', '&#128204;', 'Duplicate Therapies',
+      'Same drug class prescribed more than once',
+      `<p class="clear-msg">&#10003; No duplicate therapeutic classes detected.</p>`);
+  }
+
+  const rows = d.found.map(f => {
+    const is = f.risk_level === 'CONTRAINDICATED' ? 'danger'
+             : f.risk_level === 'SERIOUS' ? 'warning' : 'caution';
+    return `<div class="flag-entry fe-${is}">
+      <div class="fe-head">
+        <span class="fe-drug">${esc(f.class_name)}</span>
+        <span class="fe-table fe-sev-${is}">${esc(f.risk_level)}</span>
+      </div>
+      <div class="fe-concern">Drugs involved: ${esc(f.drugs.join(', '))}</div>
+      <div class="muted small">${esc(f.warning)}</div>
+    </div>`;
+  }).join('');
+
+  return makeCard(sev, '&#128204;', 'Duplicate Therapies',
+    'Same drug class prescribed more than once', rows);
+}
+
+function renderCumulative(d) {
+  const riskSevs = [
+    riskLevelSev(d.bleeding.risk_level),
+    riskLevelSev(d.serotonin.risk_level),
+    riskLevelSev(d.cns_depression.risk_level),
+  ];
+  const sev = maxSev(riskSevs);
+
+  const riskBlock = (label, icon, risk) => {
+    const rs = riskLevelSev(risk.risk_level);
+    if (!risk.drugs.length) return '';
+    const drugs = risk.drugs.map(dr =>
+      `<li><span class="dr-name">${esc(cap(dr.drug))}</span> <span class="muted">(${esc(dr.severity || '')})</span></li>`
+    ).join('');
+    return `<div class="risk-block rb-${rs}">
+      <div class="rb-head">${icon} ${esc(label)} &mdash; <strong>${esc(risk.risk_level)}</strong></div>
+      <ul class="rb-drugs">${drugs}</ul>
+    </div>`;
   };
-  for (const [emoji, cls] of Object.entries(iconMap)) {
-    if (t.startsWith(emoji)) {
-      return `<div class="rl-row ${cls}"><span class="rl-icon">${emoji}</span><span class="rl-text">${escHtml(t.replace(emoji,'').trim())}</span></div>`;
-    }
-  }
 
-  // Label: value patterns
-  if (/^\s+\w[\w\s]+\s*:/.test(line)) {
-    const colon = t.indexOf(':');
-    const label = t.slice(0, colon).trim();
-    const val   = t.slice(colon + 1).trim();
-    return `<div class="rl-kv"><span class="rl-key">${escHtml(label)}</span><span class="rl-val">${escHtml(val)}</span></div>`;
-  }
+  const body = [
+    riskBlock('Bleeding Risk',          '&#129656;', d.bleeding),
+    riskBlock('Serotonin Syndrome Risk','&#9889;',   d.serotonin),
+    riskBlock('CNS Depression Risk',    '&#129488;', d.cns_depression),
+  ].join('') || `<p class="clear-msg">&#10003; No significant cumulative risk identified.</p>`;
 
-  // Section subheaders (━━━ style)
-  if (/^━/.test(t) || /^─/.test(t)) {
-    const txt = t.replace(/^[━─\s]+/, '').replace(/[━─\s]+$/, '');
-    return txt ? `<div class="rl-section-head">${escHtml(txt)}</div>` : `<div class="rl-divider"></div>`;
-  }
-
-  // Bold-ish: ALL CAPS short lines (total score etc.)
-  if (/^[A-Z ]+SCORE|^TOTAL|^SUMMARY|^HIGH RISK|^RISK/.test(t)) {
-    return `<div class="rl-bold">${escHtml(t)}</div>`;
-  }
-
-  // Default plain line
-  return `<div class="rl-plain">${escHtml(t)}</div>`;
+  return makeCard(sev, '&#128202;', 'Cumulative Risk Assessment',
+    'Combined risk across all medications', body);
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ── Build critical alerts banner ────────────────────────────────────────────
-function buildCritical(sections) {
-  const alerts = [];
-  if (sections.interactions && /CONTRAINDICATED/.test(sections.interactions))
-    alerts.push('Contraindicated drug combination found — review immediately');
-  if (sections.cumulative && /VERY HIGH/.test(sections.cumulative))
-    alerts.push('Overall medication risk is very high');
-  if (sections.acb && /HIGH RISK/.test(sections.acb))
-    alerts.push('High anticholinergic burden — memory and fall risk elevated');
-  if (sections.duplicates && /\b[1-9]\//.test(sections.duplicates))
-    alerts.push('Duplicate therapy detected — same type of drug prescribed twice');
-
-  if (alerts.length === 0) {
-    criticalBanner.classList.add('hidden');
-    return;
+function renderSTART(d) {
+  if (!d.suggestions.length) {
+    return makeCard('info', '&#128161;', 'START v3 2023 — Medications to Consider Starting',
+      'Prescribing omissions for documented conditions',
+      `<p class="clear-msg">&#8594; Add conditions above to see START suggestions, or no omissions found for the given conditions.</p>`, false);
   }
-  criticalList.innerHTML = alerts.map(a => `<li>${a}</li>`).join('');
-  criticalBanner.classList.remove('hidden');
+
+  const rows = d.suggestions.map(s => `
+    <div class="start-entry">
+      <div class="fe-head">
+        <span class="fe-drug">${esc(s.drug_class)}</span>
+        <span class="fe-table">${esc(s.criterion_id)}</span>
+      </div>
+      <div class="fe-concern">When: ${esc(s.indication)}</div>
+      <details class="fe-details">
+        <summary>Rationale &amp; examples</summary>
+        <p>${esc(s.rationale)}</p>
+        ${s.examples.length ? `<p class="muted">Examples: ${esc(s.examples.join(', '))}</p>` : ''}
+      </details>
+    </div>`).join('');
+
+  return makeCard('info', '&#128161;', 'START v3 2023 — Medications to Consider Starting',
+    'Prescribing omissions for documented conditions', rows, false);
 }
 
-// ── Build brand mapping banner ───────────────────────────────────────────────
-function buildBrand(brandNotes) {
-  if (!brandNotes || brandNotes.length === 0) {
-    brandBanner.classList.add('hidden');
-    return;
-  }
-  brandList.innerHTML = brandNotes.map(note => `<li>${note}</li>`).join('');
-  brandBanner.classList.remove('hidden');
+/* ── Summary bar ──────────────────────────────────────────────────────────── */
+function buildSummary(d) {
+  const counters = { danger: 0, warning: 0, caution: 0 };
+
+  if (d.acb.high_risk) counters.danger++;
+  else if (d.acb.total_score > 0) counters.warning++;
+
+  d.beers.results.forEach(r => r.entries.forEach(e => {
+    if (e.table === '2') counters.danger++;
+    else counters.warning++;
+  }));
+
+  d.stopp.results.forEach(r => r.entries.forEach(() => counters.warning++));
+
+  d.interactions.found.forEach(i => {
+    const s = interactionSev(i.severity);
+    if (s in counters) counters[s]++;
+  });
+
+  d.duplicates.found.forEach(f => {
+    const s = f.risk_level === 'CONTRAINDICATED' ? 'danger'
+            : f.risk_level === 'SERIOUS' ? 'warning' : 'caution';
+    counters[s]++;
+  });
+
+  [d.cumulative.bleeding, d.cumulative.serotonin, d.cumulative.cns_depression].forEach(r => {
+    const s = riskLevelSev(r.risk_level);
+    if (s in counters) counters[s]++;
+  });
+
+  const total = counters.danger + counters.warning + counters.caution;
+
+  const overallSev = counters.danger ? 'danger' : counters.warning ? 'warning' : counters.caution ? 'caution' : 'ok';
+  const overallMsg = overallSev === 'ok'
+    ? 'No significant issues found across all checks.'
+    : `${total} issue${total !== 1 ? 's' : ''} found — please review the sections below.`;
+
+  const chips = [
+    counters.danger  ? `<span class="sum-chip chip-danger">${counters.danger} Critical</span>`  : '',
+    counters.warning ? `<span class="sum-chip chip-warning">${counters.warning} Warning</span>` : '',
+    counters.caution ? `<span class="sum-chip chip-caution">${counters.caution} Monitor</span>` : '',
+    (!total)         ? `<span class="sum-chip chip-ok">All Clear</span>`                         : '',
+  ].filter(Boolean).join('');
+
+  summaryBar.className = `summary-bar sb-${overallSev}`;
+  summaryBar.innerHTML = `
+    <div class="sb-left">
+      <div class="sb-icon">${overallSev === 'ok' ? '&#10003;' : '&#9888;'}</div>
+      <div>
+        <p class="sb-msg">${esc(overallMsg)}</p>
+        <p class="sb-drugs muted">Medications checked: ${esc(d.drugs_checked.map(cap).join(', '))}${d.conditions.length ? ' &nbsp;|&nbsp; Conditions: ' + esc(d.conditions.map(cap).join(', ')) : ''}</p>
+      </div>
+    </div>
+    <div class="sb-chips">${chips}</div>`;
 }
 
-// ── Run the check ───────────────────────────────────────────────────────────
+/* ── Main render ──────────────────────────────────────────────────────────── */
+function renderResults(d) {
+  buildSummary(d);
+  resultCards.innerHTML = [
+    renderACB(d.acb),
+    renderBeers(d.beers),
+    renderSTOPP(d.stopp),
+    renderInteractions(d.interactions),
+    renderDuplicates(d.duplicates),
+    renderCumulative(d.cumulative),
+    renderSTART(d.start),
+  ].join('');
+}
+
+/* ── Events ───────────────────────────────────────────────────────────────── */
 runBtn.addEventListener('click', async () => {
   const drugs      = drugsEl.value.trim();
   const conditions = conditionsEl.value.trim();
 
   errorBanner.classList.add('hidden');
-
   if (!drugs) {
     errorText.textContent = 'Please enter at least one medication name.';
     errorBanner.classList.remove('hidden');
     return;
   }
 
-  // Show loading
   emptyState.classList.add('hidden');
   resultsSection.classList.add('hidden');
   loadingState.classList.remove('hidden');
@@ -359,22 +569,17 @@ runBtn.addEventListener('click', async () => {
   try {
     const res  = await fetch('/api/check', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ drugs, conditions }),
+      headers: {'Content-Type': 'application/json'},
+      body:    JSON.stringify({drugs, conditions}),
     });
     const data = await res.json();
-
     if (!res.ok) throw new Error(data.error || 'Server error');
 
-    const sections = parseReport(data.report);
-    buildBrand(data.brand_notes);
-    buildCritical(sections);
-    buildCards(sections);
+    renderResults(data);
 
     loadingState.classList.add('hidden');
     resultsSection.classList.remove('hidden');
-    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
+    resultsSection.scrollIntoView({behavior: 'smooth', block: 'start'});
   } catch (err) {
     loadingState.classList.add('hidden');
     emptyState.classList.remove('hidden');
@@ -385,21 +590,19 @@ runBtn.addEventListener('click', async () => {
   }
 });
 
-// ── Clear ───────────────────────────────────────────────────────────────────
 clearBtn.addEventListener('click', () => {
-  drugsEl.value      = '';
-  conditionsEl.value = '';
+  drugsEl.value = conditionsEl.value = '';
   errorBanner.classList.add('hidden');
   resultsSection.classList.add('hidden');
   loadingState.classList.add('hidden');
   emptyState.classList.remove('hidden');
   resultCards.innerHTML = '';
-  brandBanner.classList.add('hidden');
-  criticalBanner.classList.add('hidden');
+  summaryBar.innerHTML  = '';
 });
 
-// Auto-run demo removed to require manual user action
-// (Previously: auto-clicked run on load; now runs only when user presses the button.)
+drugsEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) runBtn.click();
+});
 </script>
 </body>
 </html>
