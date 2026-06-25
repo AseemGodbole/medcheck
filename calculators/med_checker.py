@@ -436,6 +436,11 @@ def get_structured_results(drug_names: list, conditions: list = None) -> dict:
                 "quality_of_evidence": entry.quality_of_evidence,
                 "strength":            entry.strength,
             })
+        # If a drug is flagged in Table 2 (Always Avoid), suppress Table 4 entries
+        # for the same drug — Table 2 is the stronger, definitive recommendation
+        if any(e["table"] == "2" for e in entries):
+            entries = [e for e in entries if e["table"] != "4"]
+
         beers_data["results"].append({
             "drug":    drug["input"],
             "flagged": bool(entries),
