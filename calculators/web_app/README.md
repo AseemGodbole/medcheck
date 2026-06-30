@@ -1,6 +1,6 @@
-# MedCheck Web App
+# Nivarak Web App
 
-A web application for medication safety screening (ACB, Beers, STOPP/START). Deploy to Render for free.
+Flask web application for the Nivarak medication safety checker. See the root README for full feature documentation.
 
 ## Local Setup
 
@@ -10,24 +10,19 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open http://localhost:5000
+Open [http://localhost:5000](http://localhost:5000)
 
-## Deploy to Render (Free)
+## Deploy to Render
 
-1. Push this folder to GitHub.
-2. Go to https://render.com and sign up.
-3. Create a new **Web Service**.
-4. Connect your GitHub repo.
-5. Set:
+1. Push to GitHub (main branch).
+2. Go to [render.com](https://render.com) and create a **Web Service**.
+3. Connect the GitHub repo and set:
    - **Build command:** `pip install -r requirements.txt`
    - **Start command:** `python app.py`
-6. Click Deploy.
+4. Deploy. Auto-redeploy triggers on every push to main.
 
-Render's free tier includes:
-- Up to 750 hours/month (always-on).
-- Auto-sleep after 15 minutes of inactivity (can restart).
-- Great for demos.
+## API
 
-Your live URL will be something like: `https://medcheck-xxxxx.onrender.com`
+`POST /check` — accepts JSON body `{ "drugs": [...], "conditions": [...] }`, returns a structured safety report.
 
-Share that link with your founder!
+The core logic lives in `calculators/med_checker.py` → `get_structured_results(drug_names, conditions)`.

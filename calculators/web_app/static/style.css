@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   MedCheck — Medical Professional UI
+   Nivarak — Medical Professional UI
    Lora serif headings · Source Sans 3 body · Navy/teal palette
    Large base type (18px) for adults 65+
 ═══════════════════════════════════════════════════════════════════ */
@@ -89,6 +89,12 @@ body {
   font-weight: 700;
   letter-spacing: -0.4px;
   color: var(--white);
+}
+
+.logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
 }
 
 .header-tagline {
