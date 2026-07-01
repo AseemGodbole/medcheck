@@ -2,8 +2,8 @@ import os
 import sys
 from flask import Flask, render_template, request, jsonify
 
-app_dir   = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(app_dir)
+app_dir    = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(app_dir))
 sys.path.insert(0, parent_dir)
 
 from med_checker import get_structured_results
